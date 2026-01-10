@@ -105,7 +105,7 @@ export default function Dashboard() {
                <h2 className="text-2xl font-black uppercase italic tracking-tighter">Warehouse Capacity</h2>
                <div className="flex justify-between items-end mt-4">
                   <p className="text-4xl font-black">{currentStock} <span className="text-lg opacity-50">KG</span></p>
-                  <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Live Net Inventory</p>
+                  <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Current Stock</p>
                </div>
                <div className="h-3 w-full bg-white/10 rounded-full mt-4 overflow-hidden">
                   <div 
@@ -179,12 +179,12 @@ export default function Dashboard() {
         <header className="h-24 min-h-[96px] flex items-center justify-between px-10 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
            <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 text-slate-500"><Menu /></button>
            <div className="hidden md:block">
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest italic">Inventory Control System v2.0</p>
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest italic">Inventory Management Software</p>
            </div>
            <div className="flex items-center gap-6">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-black text-slate-900 leading-none">Admin Panel</p>
-                <p className="text-[10px] text-blue-600 font-bold uppercase mt-1">Live Updates</p>
+                <p className="text-[10px] text-blue-600 font-bold uppercase mt-1">Admin</p>
               </div>
               <div className="w-12 h-12 rounded-2xl bg-[#001D3D] text-white flex items-center justify-center font-black">ST</div>
            </div>

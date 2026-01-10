@@ -47,8 +47,8 @@ export default function Records() {
 
   const handleUpdatePayment = async () => {
     const amountToPay = Number(newPayment);
-    if (!newPayment || amountToPay <= 0) return alert("Valid amount enter karein.");
-    if (amountToPay > selectedRecord.remainingAmount) return alert("Amount balance se zyada hai.");
+    if (!newPayment || amountToPay <= 0) return alert("Please Enter Valid Amount");
+    if (amountToPay > selectedRecord.remainingAmount) return alert("The Amount is Greater than Balance.");
 
     setUpdating(true);
     try {
@@ -87,7 +87,7 @@ export default function Records() {
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Records <span className="text-blue-600">Vault</span></h1>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Customer's <span className="text-blue-600">Records</span></h1>
           <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mt-1">Transaction History & Ledger</p>
         </div>
 

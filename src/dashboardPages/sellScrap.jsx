@@ -163,7 +163,7 @@ export default function SalesRecords() {
         <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">Dispatch Inventory & Costing</h2>
-            <button type="button" onClick={addItem} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2"><Plus size={14}/> ADD ITEM</button>
+            <button type="button" onClick={addItem} className="bg-[#001D3D] text-white px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2"><Plus size={14}/> ADD ITEM</button>
           </div>
           
           <div className="space-y-3">
