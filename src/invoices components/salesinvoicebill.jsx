@@ -2,7 +2,7 @@ import React from 'react';
 import LeftLogo from '../assets/logoleft.png';
 import RightLogo from '../assets/logoright.png';
 
-const PurchaseInvoiceBill = React.forwardRef(({ data }, ref) => {
+const SalesInvoiceBill = React.forwardRef(({ data }, ref) => {
   // Current Date and Time
   const date = new Date().toLocaleDateString('en-PK', {
     day: '2-digit',
@@ -36,8 +36,8 @@ const PurchaseInvoiceBill = React.forwardRef(({ data }, ref) => {
           </div>
 
           <div className="text-center flex-1 px-4">
-            <h1 className="text-4xl font-black text-black uppercase tracking-tighter mb-1">
-              Purchase Invoice
+            <h1 className="text-4xl font-black text-black uppercase tracking-tighter mb-1 italic">
+              Sales Invoice
             </h1>
             <h2 className="text-[16px] font-black text-black uppercase tracking-[0.2em] mb-2">
               Sheikh & Khan Trader's
@@ -48,13 +48,13 @@ const PurchaseInvoiceBill = React.forwardRef(({ data }, ref) => {
             </p>
             
             <div className="flex justify-center gap-6 mt-4 pt-2 border-t border-gray-200">
-              <div className="text-center border-l border-gray-300 pl-6">
-                <p className="text-[9px] font-black uppercase text-gray-400">Shehroz</p>
-                <p className="text-[10px] font-bold text-black">0300-9266210 | 0333-2088846</p>
-              </div>
               <div className="text-center">
                 <p className="text-[9px] font-black uppercase text-gray-400">Jibran</p>
                 <p className="text-[10px] font-bold text-black">0323-1203286 | 0302-0025093</p>
+              </div>
+              <div className="text-center border-l border-gray-300 pl-6">
+                <p className="text-[9px] font-black uppercase text-gray-400">Shehroz</p>
+                <p className="text-[10px] font-bold text-black">0300-9266210 | 0333-2088846</p>
               </div>
             </div>
           </div>
@@ -65,20 +65,23 @@ const PurchaseInvoiceBill = React.forwardRef(({ data }, ref) => {
         </div>
 
         {/* Info Section */}
-        <div className="flex justify-between mb-8 bg-gray-50 p-6 rounded-2xl border border-gray-200">
+        <div className="flex justify-between mb-8 bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
           <div>
-            <p className="text-[9px] font-black text-gray-400 uppercase mb-1 tracking-widest">Vendor / Seller</p>
+            <p className="text-[9px] font-black text-blue-400 uppercase mb-1 tracking-widest">Customer / Buyer</p>
             <h3 className="text-2xl font-black text-black uppercase">{data?.customerName || 'N/A'}</h3>
             <p className="text-sm font-bold text-gray-600 tracking-tight">{data?.customerContact || 'No Contact'}</p>
-            <p className="text-[10px] mt-2 text-gray-500 font-bold uppercase tracking-tighter">Location: <span className="text-black">{data?.address || 'N/A'}</span></p>
+            <p className="text-[10px] mt-2 text-gray-500 font-bold uppercase tracking-tighter">
+              Destination: <span className="text-black">{data?.address || 'N/A'}</span>
+            </p>
           </div>
           
           <div className="text-right flex flex-col justify-center">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Invoice Details</p>
-            {/* Displaying the dynamic Invoice ID like PSK-0001 */}
-            <p className="text-xl font-black text-black">Invoice #{data?.invoiceNo || 'PSK-XXXX'}</p>
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Dispatch Details</p>
+            <p className="text-xl font-black text-black">INV #{data?.invoiceNo || 'SHK-XXXX'}</p>
             <p className="text-[11px] font-bold text-gray-600 uppercase mt-1">{date}</p>
-       
+            <div className="mt-2 text-[9px] font-black border-2 border-blue-600 px-3 py-1 rounded uppercase inline-block bg-white self-end text-blue-600">
+              Delivery Challan
+            </div>
           </div>
         </div>
 
@@ -88,9 +91,9 @@ const PurchaseInvoiceBill = React.forwardRef(({ data }, ref) => {
             <thead>
               <tr className="bg-gray-100 border-b-2 border-black text-black text-left">
                 <th className="p-4 uppercase font-black text-[11px]">Item Description</th>
-                <th className="p-4 uppercase font-black text-[11px] text-center">Weight (KG)</th>
-                <th className="p-4 uppercase font-black text-[11px] text-center">Rate/KG</th>
-                <th className="p-4 uppercase font-black text-[11px] text-right">Total Amount</th>
+                <th className="p-4 uppercase font-black text-[11px] text-center">Qty / Weight</th>
+                <th className="p-4 uppercase font-black text-[11px] text-center">Unit Price</th>
+                <th className="p-4 uppercase font-black text-[11px] text-right">Sub Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -106,8 +109,7 @@ const PurchaseInvoiceBill = React.forwardRef(({ data }, ref) => {
                   <td className="p-4 text-right font-black text-xl text-black">Rs. {Number(item.total).toLocaleString()}</td>
                 </tr>
               ))}
-              {/* Spacer to push summary down if few items */}
-              <tr className="h-20"><td></td><td></td><td></td><td></td></tr>
+              <tr className="h-32 text-gray-300 italic"><td className="p-4 text-[10px]" colSpan="4 text-center">--- No More Items ---</td></tr>
             </tbody>
           </table>
         </div>
@@ -116,15 +118,24 @@ const PurchaseInvoiceBill = React.forwardRef(({ data }, ref) => {
         <div className="flex justify-between items-start mt-10">
           {/* Terms & Signature */}
           <div className="w-1/2">
-            <div className="border-l-4 border-gray-200 pl-4 mt-2">
-              <p className="text-[10px] font-black uppercase text-gray-400 mb-2 underline">Terms & Conditions</p>
+            <div className="border-l-4 border-blue-600 pl-4 mt-2">
+              <p className="text-[10px] font-black uppercase text-blue-600 mb-2 underline">Sales Terms</p>
               <p className="text-[9px] text-gray-500 font-bold leading-tight italic">
-                1. This is a computer generated receipt.<br />
-                2. Goods once sold/purchased will not be returned.<br />
-                3. Payment must be cleared according to the balance shown.
+                1. Please check the weight before unloading at destination.<br />
+                2. We are not responsible for any damage after delivery.<br />
+                3. Payment should be made as per agreed credit terms.
               </p>
             </div>
-      
+            <div className="mt-16 flex gap-10">
+               <div className="text-center">
+                 <div className="w-32 border-b border-black mb-1"></div>
+                 <p className="text-[9px] font-black uppercase">Buyer's Sign</p>
+               </div>
+               <div className="text-center">
+                 <div className="w-32 border-b border-black mb-1"></div>
+                 <p className="text-[9px] font-black uppercase">Authorized Stamp</p>
+               </div>
+            </div>
           </div>
 
           {/* Totals */}
@@ -132,20 +143,20 @@ const PurchaseInvoiceBill = React.forwardRef(({ data }, ref) => {
             <div className="border-2 border-black rounded-2xl overflow-hidden bg-white shadow-sm">
               {/* Grand Total */}
               <div className="flex justify-between p-3 border-b border-gray-100">
-                <span className="text-[10px] font-black uppercase text-gray-500">Gross Total</span>
+                <span className="text-[10px] font-black uppercase text-gray-500">Net Sales Value</span>
                 <span className="font-bold text-black text-sm">Rs. {data?.totalAmount?.toLocaleString()}</span>
               </div>
               
-              {/* Paid Amount */}
-              <div className="flex justify-between p-3 bg-gray-50 border-b border-black">
-                <span className="text-[10px] font-black uppercase text-emerald-600">Paid Amount</span>
-                <span className="font-black text-emerald-700 text-base">Rs. {Number(data?.paidAmount || 0).toLocaleString()}</span>
+              {/* Received Amount */}
+              <div className="flex justify-between p-3 bg-blue-50 border-b border-black">
+                <span className="text-[10px] font-black uppercase text-blue-700">Cash Received</span>
+                <span className="font-black text-blue-800 text-base">Rs. {Number(data?.receivedAmount || 0).toLocaleString()}</span>
               </div>
 
               {/* Remaining Balance */}
-              <div className={`flex justify-between p-4 ${data?.remainingAmount > 0 ? 'bg-rose-50' : 'bg-gray-50'}`}>
-                <span className="text-[12px] font-black uppercase italic underline">Balance Due</span>
-                <span className={`text-xl font-black ${data?.remainingAmount > 0 ? 'text-rose-600' : 'text-black'}`}>
+              <div className={`flex justify-between p-4 ${data?.remainingAmount > 0 ? 'bg-rose-50' : 'bg-emerald-50'}`}>
+                <span className="text-[12px] font-black uppercase italic underline">Amount Receivable</span>
+                <span className={`text-xl font-black ${data?.remainingAmount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                   Rs. {Number(data?.remainingAmount || 0).toLocaleString()}
                 </span>
               </div>
@@ -155,7 +166,7 @@ const PurchaseInvoiceBill = React.forwardRef(({ data }, ref) => {
 
         {/* Footer Note */}
         <div className="absolute bottom-10 left-0 right-0 text-center border-t border-gray-100 pt-4">
-           <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.5em]">Thank You For Your Business</p>
+           <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.5em]">Inventory Outbound Receipt • Sheikh Traders</p>
         </div>
 
       </div>
@@ -163,4 +174,4 @@ const PurchaseInvoiceBill = React.forwardRef(({ data }, ref) => {
   );
 });
 
-export default PurchaseInvoiceBill;
+export default SalesInvoiceBill;

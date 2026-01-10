@@ -25,7 +25,7 @@ export default function AppRouter() {
                     <Route path="purchase" element={<PurchaseScrap />} />
                     
                     {/* Aap mazeed routes yahan add kar sakte hain */}
-                    <Route path="sales" element={<SalesRecords/>} />
+                    <Route path="sale" element={<SalesRecords/>} />
                     <Route path="records" element={<Records/>} />
                 </Route>
             </Routes>
