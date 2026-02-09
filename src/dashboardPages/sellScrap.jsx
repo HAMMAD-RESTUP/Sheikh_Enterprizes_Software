@@ -1,117 +1,181 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useReactToPrint } from 'react-to-print';
-import SalesInvoiceBill from '../invoices components/salesinvoicebill';
-import { db } from '../firebase/firebaseConfig';
-import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs } from 'firebase/firestore';
-import { 
-  User, Calculator, Trash2, Truck, Hash, Banknote, Clock, Plus, TrendingUp 
-} from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useReactToPrint } from "react-to-print";
+import SalesInvoiceBill from "../invoices components/salesinvoicebill";
+import { db } from "../firebase/firebaseConfig";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  orderBy,
+  limit,
+  getDocs,
+} from "firebase/firestore";
+import {
+  Truck,
+  Hash,
+  Plus,
+  Trash2,
+  Calculator,
+  Banknote,
+  Clock,
+  TrendingUp,
+  Printer,
+} from "lucide-react";
 
+/* ================= Helpers ================= */
+const cn = (...c) => c.filter(Boolean).join(" ");
+const toNum = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+const money = (n) => (Number.isFinite(n) ? n.toLocaleString() : "0");
+
+/* ========= Invoice No Generator ========= */
 const getNextInvoiceID = async (type) => {
-  const prefix = type === 'sales' ? 'SHK-' : 'PSK-';
+  const prefix = type === "sales" ? "SHK-" : "PSK-";
   const q = query(collection(db, "transactions"), orderBy("invoiceNo", "desc"), limit(50));
   const querySnapshot = await getDocs(q);
+
   let lastNumber = 0;
   querySnapshot.forEach((doc) => {
     const id = doc.data().invoiceNo;
     if (id && id.startsWith(prefix)) {
-      const num = parseInt(id.split('-')[1]);
+      const num = parseInt(id.split("-")[1], 10);
       if (num > lastNumber) lastNumber = num;
     }
   });
-  return `${prefix}${(lastNumber + 1).toString().padStart(4, '0')}`;
+
+  return `${prefix}${(lastNumber + 1).toString().padStart(4, "0")}`;
 };
 
 export default function SalesRecords() {
   const [customerData, setCustomerData] = useState({
-    customerName: '', customerContact: '', address: '', invoiceNo: 'Loading...'
+    customerName: "",
+    customerContact: "",
+    address: "",
+    invoiceNo: "Loading...",
   });
 
-  // Added 'purchaseRate' and 'itemProfit' to items
   const [items, setItems] = useState([
-    { id: Date.now(), itemDescription: '', quantity: '', ratePerKg: '', purchaseRate: '', total: 0, itemProfit: 0 }
+    {
+      id: Date.now(),
+      itemDescription: "",
+      quantity: "",
+      ratePerKg: "",
+      purchaseRate: "",
+      total: 0,
+      itemProfit: 0,
+    },
   ]);
 
-  const [amounts, setAmounts] = useState({
-    totalAmount: 0,
-    receivedAmount: '',
-    remainingAmount: 0,
-    totalProfit: 0 // Overall profit for this invoice
-  });
-
+  const [receivedAmount, setReceivedAmount] = useState("");
   const [loading, setLoading] = useState(false);
-  const componentRef = useRef();
-  const themeDarkBlue = "bg-[#001D3D]";
 
+  const componentRef = useRef(null);
+
+  /* ====== Theme (same as Purchase page) ====== */
+  const pageWrap = "min-h-screen relative bg-[#F8FAFC] text-slate-900";
+  const bg = (
+    <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 bg-[#F8FAFC]" />
+      <div className="absolute inset-0 bg-[radial-gradient(950px_circle_at_18%_18%,rgba(59,130,246,0.12),transparent_55%),radial-gradient(900px_circle_at_84%_26%,rgba(14,165,233,0.1),transparent_55%)]" />
+      <div className="absolute inset-0 opacity-[0.15] [background-image:linear-gradient(to_right,rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.06)_1px,transparent_1px)] [background-size:40px_40px]" />
+    </div>
+  );
+
+  const card =
+    "bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_10px_30px_rgba(15,23,42,0.06)] rounded-[2.4rem] overflow-hidden";
+  const cardHeader = "bg-white/20 border-b border-white/60";
+  const softInset =
+    "bg-white/20 border border-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]";
+  const inputBase =
+    "w-full rounded-2xl bg-white/30 border border-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] text-slate-800 placeholder:text-slate-400/80 outline-none transition";
+  const inputFocus = "focus:bg-white/45 focus:border-blue-300 focus:ring-4 focus:ring-blue-100/60";
+
+  /* ====== Invoice No Fetch ====== */
   useEffect(() => {
     const fetchID = async () => {
-      const nextID = await getNextInvoiceID('sales');
-      setCustomerData(prev => ({ ...prev, invoiceNo: nextID }));
+      const nextID = await getNextInvoiceID("sales");
+      setCustomerData((prev) => ({ ...prev, invoiceNo: nextID }));
     };
     fetchID();
   }, []);
 
-  // Updated Calculation for Profit
-  useEffect(() => {
-    const grandTotal = items.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
-    const grandProfit = items.reduce((sum, item) => sum + (Number(item.itemProfit) || 0), 0);
-    const received = Number(amounts.receivedAmount) || 0;
-    
-    setAmounts(prev => ({
-      ...prev,
-      totalAmount: grandTotal,
-      remainingAmount: grandTotal - received,
-      totalProfit: grandProfit
-    }));
-  }, [items, amounts.receivedAmount]);
+  /* ====== Calculations ====== */
+  const totals = useMemo(() => {
+    const totalAmount = items.reduce((sum, item) => sum + toNum(item.total), 0);
+    const totalProfit = items.reduce((sum, item) => sum + toNum(item.itemProfit), 0);
+    const received = toNum(receivedAmount);
+    const remaining = totalAmount - received;
+    return { totalAmount, totalProfit, received, remaining };
+  }, [items, receivedAmount]);
 
+  /* ====== Print ====== */
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
     documentTitle: `Sales_Bill_${customerData.invoiceNo}`,
   });
 
-  const handleCustomerChange = (e) => setCustomerData({ ...customerData, [e.target.name]: e.target.value });
+  /* ====== Handlers ====== */
+  const handleCustomerChange = (e) =>
+    setCustomerData({ ...customerData, [e.target.name]: e.target.value });
 
   const handleItemChange = (id, field, value) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        const updatedItem = { ...item, [field]: value };
-        
-        // Logic: Profit = (Selling Rate - Purchase Rate) * Quantity
-        const qty = Number(field === 'quantity' ? value : item.quantity) || 0;
-        const sRate = Number(field === 'ratePerKg' ? value : item.ratePerKg) || 0;
-        const pRate = Number(field === 'purchaseRate' ? value : item.purchaseRate) || 0;
-        
-        updatedItem.total = qty * sRate;
-        updatedItem.itemProfit = (sRate - pRate) * qty;
-        
-        return updatedItem;
-      }
-      return item;
-    }));
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+
+        const updated = { ...item, [field]: value };
+
+        const qty = toNum(field === "quantity" ? value : updated.quantity);
+        const sRate = toNum(field === "ratePerKg" ? value : updated.ratePerKg);
+        const pRate = toNum(field === "purchaseRate" ? value : updated.purchaseRate);
+
+        updated.total = qty * sRate;
+        updated.itemProfit = (sRate - pRate) * qty;
+
+        return updated;
+      })
+    );
   };
 
-  const addItem = () => setItems([...items, { id: Date.now(), itemDescription: '', quantity: '', ratePerKg: '', purchaseRate: '', total: 0, itemProfit: 0 }]);
-  const removeItem = (id) => items.length > 1 && setItems(items.filter(item => item.id !== id));
+  const addItem = () =>
+    setItems((p) => [
+      ...p,
+      {
+        id: Date.now() + Math.random(),
+        itemDescription: "",
+        quantity: "",
+        ratePerKg: "",
+        purchaseRate: "",
+        total: 0,
+        itemProfit: 0,
+      },
+    ]);
+
+  const removeItem = (id) =>
+    setItems((p) => (p.length > 1 ? p.filter((x) => x.id !== id) : p));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (amounts.totalAmount === 0) return alert("Please add at least one item.");
-    
+    if (totals.totalAmount === 0) return alert("Please add at least one item.");
+
     setLoading(true);
     try {
-      const finalInvoiceNo = await getNextInvoiceID('sales');
+      const finalInvoiceNo = await getNextInvoiceID("sales");
+
       const salesData = {
         invoiceNo: finalInvoiceNo,
         customerName: customerData.customerName,
         contact: customerData.customerContact,
         address: customerData.address,
         items,
-        totalAmount: amounts.totalAmount,
-        receivedAmount: Number(amounts.receivedAmount) || 0,
-        remainingAmount: amounts.remainingAmount,
-        profit: amounts.totalProfit, // Saving total profit to Firebase
-        type: 'sales',
+        totalAmount: totals.totalAmount,
+        receivedAmount: totals.received,
+        remainingAmount: totals.remaining,
+        profit: totals.totalProfit,
+        type: "sales",
         timestamp: serverTimestamp(),
       };
 
@@ -119,12 +183,30 @@ export default function SalesRecords() {
 
       setTimeout(async () => {
         handlePrint();
-        const nextID = await getNextInvoiceID('sales');
-        setItems([{ id: Date.now(), itemDescription: '', quantity: '', ratePerKg: '', purchaseRate: '', total: 0, itemProfit: 0 }]);
-        setCustomerData({ customerName: '', customerContact: '', address: '', invoiceNo: nextID });
-        setAmounts({ totalAmount: 0, receivedAmount: '', remainingAmount: 0, totalProfit: 0 });
+        const nextID = await getNextInvoiceID("sales");
+
+        setItems([
+          {
+            id: Date.now(),
+            itemDescription: "",
+            quantity: "",
+            ratePerKg: "",
+            purchaseRate: "",
+            total: 0,
+            itemProfit: 0,
+          },
+        ]);
+
+        setCustomerData({
+          customerName: "",
+          customerContact: "",
+          address: "",
+          invoiceNo: nextID,
+        });
+
+        setReceivedAmount("");
         setLoading(false);
-      }, 800);
+      }, 600);
     } catch (error) {
       console.error(error);
       alert("Error saving record.");
@@ -132,112 +214,311 @@ export default function SalesRecords() {
     }
   };
 
+  const canSubmit = useMemo(() => {
+    const hasCustomer = customerData.customerName.trim() && customerData.customerContact.trim();
+    const hasItem = items.some(
+      (i) => i.itemDescription.trim() && (toNum(i.quantity) > 0 || toNum(i.ratePerKg) > 0)
+    );
+    return hasCustomer && hasItem && totals.totalAmount > 0 && !loading;
+  }, [customerData.customerName, customerData.customerContact, items, totals.totalAmount, loading]);
+
   return (
-    <div className="max-w-6xl mx-auto py-6 px-4">
-      {/* HEADER */}
-      <div className="mb-10 flex flex-col md:flex-row justify-between items-center gap-6">
+    <div className={pageWrap}>
+      {bg}
+
+      {/* HEADER (same vibe as Purchase) */}
+      <header className="sticky top-0 z-30 px-6 md:px-10 py-6 flex items-center justify-between bg-transparent backdrop-blur-sm">
         <div className="flex items-center gap-5">
-          <div className={`w-14 h-14 ${themeDarkBlue} rounded-2xl flex items-center justify-center text-white shadow-xl`}>
-            <Truck size={28} />
+          <div className={cn("w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center text-slate-800", softInset)}>
+            <Truck size={24} />
           </div>
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 uppercase italic tracking-tighter">Sales <span className="text-blue-600">Dispatch</span></h1>
-            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.3em]">Net Profit Tracking Enabled</p>
+          <div className="leading-tight">
+            <h1 className="text-[18px] md:text-[20px] font-extrabold tracking-tight text-slate-900">
+              Sales Dispatch
+            </h1>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">
+              Profit enabled
+            </p>
           </div>
-        </div>
-        <div className="bg-white px-6 py-3 rounded-2xl border-2 border-blue-50 flex items-center gap-4">
-           <Hash size={20} className="text-blue-600" />
-           <p className="text-lg font-black text-[#001D3D]">{customerData.invoiceNo}</p>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* CUSTOMER INFO */}
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <input required name="customerName" value={customerData.customerName} onChange={handleCustomerChange} className="bg-slate-50 rounded-2xl p-4 font-bold outline-none border-2 border-transparent focus:border-blue-500" placeholder="Buyer Name" />
-            <input required name="customerContact" value={customerData.customerContact} onChange={handleCustomerChange} className="bg-slate-50 rounded-2xl p-4 font-bold outline-none border-2 border-transparent focus:border-blue-500" placeholder="Contact" />
-            <input name="address" value={customerData.address} onChange={handleCustomerChange} className="bg-slate-50 rounded-2xl p-4 font-bold outline-none border-2 border-transparent focus:border-blue-500" placeholder="Address" />
         </div>
 
-        {/* ITEMS LIST */}
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">Dispatch Inventory & Costing</h2>
-            <button type="button" onClick={addItem} className="bg-[#001D3D] text-white px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2"><Plus size={14}/> ADD ITEM</button>
-          </div>
-          
-          <div className="space-y-3">
-            {items.map((item) => (
-              <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 bg-slate-50 p-4 rounded-2xl items-center border border-transparent hover:border-blue-200 transition-all">
-                <div className="md:col-span-3">
-                    <input className="w-full bg-transparent font-bold outline-none text-slate-800" placeholder="Item Name" value={item.itemDescription} onChange={(e) => handleItemChange(item.id, 'itemDescription', e.target.value)} />
-                </div>
-                <div className="md:col-span-2">
-                    <input type="number" className="w-full bg-white p-2.5 rounded-xl font-black text-center text-blue-600 outline-none" placeholder="Qty (KG)" value={item.quantity} onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)} />
-                </div>
-                <div className="md:col-span-2">
-                    <input type="number" className="w-full bg-white p-2.5 rounded-xl font-black text-center text-emerald-600 outline-none border-2 border-emerald-100" placeholder="My Cost" value={item.purchaseRate} onChange={(e) => handleItemChange(item.id, 'purchaseRate', e.target.value)} />
-                    <p className="text-[8px] text-center font-bold text-emerald-500 mt-1 uppercase">Purchase Rate</p>
-                </div>
-                <div className="md:col-span-2">
-                    <input type="number" className="w-full bg-white p-2.5 rounded-xl font-black text-center text-blue-600 outline-none border-2 border-blue-100" placeholder="Sale Rate" value={item.ratePerKg} onChange={(e) => handleItemChange(item.id, 'ratePerKg', e.target.value)} />
-                    <p className="text-[8px] text-center font-bold text-blue-500 mt-1 uppercase">Selling Rate</p>
-                </div>
-                <div className="md:col-span-2 text-right font-black text-[#001D3D]">
-                    <p className="text-[10px] text-slate-400 italic">Sub-Total</p>
-                    Rs {item.total.toLocaleString()}
-                </div>
-                <button type="button" onClick={() => removeItem(item.id)} className="md:col-span-1 text-rose-400 flex justify-end"><Trash2 size={18}/></button>
+        <div className={cn("px-5 py-3 rounded-2xl flex items-center gap-3", softInset)}>
+          <Hash size={18} className="text-blue-600" />
+          <p className="text-[13px] md:text-[15px] font-black text-slate-900">{customerData.invoiceNo}</p>
+        </div>
+      </header>
+
+      {/* BODY */}
+      <main className="relative z-10 px-6 md:px-10 pb-12 max-w-[1400px] mx-auto">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* LEFT */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* CUSTOMER */}
+            <section className={cn(card, "hover:shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition")}>
+              <div className={cn("p-7", cardHeader)}>
+                <h2 className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  Customer
+                </h2>
               </div>
-            ))}
+
+              <div className="p-7 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Input
+                  required
+                  name="customerName"
+                  value={customerData.customerName}
+                  onChange={handleCustomerChange}
+                  placeholder="Buyer Name"
+                  className={cn(inputBase, inputFocus, "px-5 py-4 font-bold")}
+                />
+                <Input
+                  required
+                  name="customerContact"
+                  value={customerData.customerContact}
+                  onChange={handleCustomerChange}
+                  placeholder="Contact"
+                  className={cn(inputBase, inputFocus, "px-5 py-4 font-bold")}
+                />
+                <Input
+                  name="address"
+                  value={customerData.address}
+                  onChange={handleCustomerChange}
+                  placeholder="Address (optional)"
+                  className={cn(inputBase, inputFocus, "px-5 py-4 font-bold")}
+                />
+              </div>
+            </section>
+
+            {/* ITEMS */}
+            <section className={cn(card, "hover:shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition")}>
+              <div className={cn("p-7 flex items-center justify-between gap-4", cardHeader)}>
+                <h2 className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  Items
+                </h2>
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="flex items-center gap-2 px-4 py-3 bg-slate-900 hover:bg-blue-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-lg shadow-blue-900/20"
+                >
+                  <Plus size={16} />
+                  Add Item
+                </button>
+              </div>
+
+              <div className="p-7 space-y-3">
+                {items.map((item) => (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "grid grid-cols-1 md:grid-cols-12 gap-3 rounded-2xl p-4 transition",
+                      "bg-white/20 border border-white/60 hover:bg-white/30"
+                    )}
+                  >
+                    <div className="md:col-span-3">
+                      <input
+                        className={cn(inputBase, inputFocus, "px-4 py-3 font-bold bg-white/15 border-white/60")}
+                        placeholder="Item Name"
+                        value={item.itemDescription}
+                        onChange={(e) => handleItemChange(item.id, "itemDescription", e.target.value)}
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <input
+                        type="number"
+                        className={cn(inputBase, inputFocus, "px-4 py-3 font-black text-center text-blue-700 bg-white/15 border-white/60")}
+                        placeholder="Qty (KG)"
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(item.id, "quantity", e.target.value)}
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <input
+                        type="number"
+                        className={cn(inputBase, inputFocus, "px-4 py-3 font-black text-center text-emerald-700 bg-white/15 border-white/60")}
+                        placeholder="My Cost"
+                        value={item.purchaseRate}
+                        onChange={(e) => handleItemChange(item.id, "purchaseRate", e.target.value)}
+                      />
+                      <p className="text-[9px] text-center font-black text-emerald-600 mt-1 uppercase tracking-wider">
+                        Purchase
+                      </p>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <input
+                        type="number"
+                        className={cn(inputBase, inputFocus, "px-4 py-3 font-black text-center text-blue-700 bg-white/15 border-white/60")}
+                        placeholder="Sale Rate"
+                        value={item.ratePerKg}
+                        onChange={(e) => handleItemChange(item.id, "ratePerKg", e.target.value)}
+                      />
+                      <p className="text-[9px] text-center font-black text-blue-600 mt-1 uppercase tracking-wider">
+                        Selling
+                      </p>
+                    </div>
+
+                    <div className="md:col-span-2 flex md:block items-center justify-between md:text-right">
+                      <div className="md:text-right">
+                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-wider">Subtotal</p>
+                        <p className="text-[16px] font-black text-slate-900">Rs {money(item.total)}</p>
+                        <p className="text-[10px] font-black text-indigo-600 mt-1">
+                          Profit: Rs {money(item.itemProfit)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item.id)}
+                      className="md:col-span-1 flex md:justify-end items-center justify-end text-rose-500 hover:bg-rose-50/60 rounded-xl px-2 transition"
+                      title="Remove"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          {/* RIGHT: SUMMARY */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-28 space-y-6">
+              {/* Summary Card */}
+              <section className={cn(card, "shadow-[0_25px_70px_rgba(15,23,42,0.08)]")}>
+                <div className={cn("p-7", cardHeader)}>
+                  <h2 className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-500">
+                    Summary
+                  </h2>
+                </div>
+
+                <div className="p-7 space-y-5">
+                  <div className={cn("rounded-[2rem] p-6", softInset, "bg-white/25")}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Total</p>
+                        <p className="mt-2 text-[34px] font-black tracking-tighter text-slate-900 leading-none">
+                          Rs. {money(totals.totalAmount)}
+                        </p>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Profit</p>
+                        <p className="mt-2 text-[16px] font-black text-indigo-700">
+                          Rs. {money(totals.totalProfit)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 h-px bg-white/70" />
+
+                    <label className="mt-5 block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                      Received
+                    </label>
+                    <div className="relative mt-2">
+                      <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-slate-400/80">
+                        Rs.
+                      </span>
+                      <input
+                        type="number"
+                        value={receivedAmount}
+                        onChange={(e) => setReceivedAmount(e.target.value)}
+                        className={cn(inputBase, inputFocus, "pl-14 pr-5 py-4 font-black text-2xl bg-white/30 border-white/70")}
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div
+                      className={cn(
+                        "mt-5 rounded-2xl p-4 border flex items-center justify-between",
+                        totals.remaining > 0
+                          ? "bg-rose-50/60 border-rose-100/70"
+                          : "bg-emerald-50/60 border-emerald-100/70"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "text-[10px] font-black uppercase tracking-[0.2em]",
+                          totals.remaining > 0 ? "text-rose-700" : "text-emerald-700"
+                        )}
+                      >
+                        {totals.remaining > 0 ? "Balance" : "Paid"}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-[16px] font-black",
+                          totals.remaining > 0 ? "text-rose-700" : "text-emerald-700"
+                        )}
+                      >
+                        Rs. {money(totals.remaining)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={!canSubmit}
+                    className={cn(
+                      "w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-2",
+                      canSubmit
+                        ? "bg-slate-900 hover:bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                        : "bg-white/30 text-slate-400 cursor-not-allowed border border-white/60"
+                    )}
+                  >
+                    <Printer size={18} />
+                    {loading ? "Saving..." : "Finalize & Print"}
+                  </button>
+
+                  {/* Mini stat strip (optional but clean) */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <MiniStat icon={Calculator} label="Bill" value={`Rs ${money(totals.totalAmount)}`} softInset={softInset} />
+                    <MiniStat icon={Banknote} label="Recv" value={`Rs ${money(totals.received)}`} softInset={softInset} />
+                    <MiniStat icon={Clock} label="Due" value={`Rs ${money(totals.remaining)}`} softInset={softInset} danger />
+                  </div>
+                </div>
+              </section>
+
+              {/* (You had a profit gradient box before — now it’s integrated cleanly in summary.) */}
+            </div>
+          </div>
+        </form>
+
+        {/* PRINT PREVIEW */}
+        <div style={{ display: "none" }}>
+          <div ref={componentRef}>
+            <SalesInvoiceBill
+              data={{
+                ...customerData,
+                items,
+                totalAmount: totals.totalAmount,
+                receivedAmount: totals.received,
+                remainingAmount: totals.remaining,
+              }}
+            />
           </div>
         </div>
+      </main>
+    </div>
+  );
+}
 
-        {/* TOTALS & PROFIT DISPLAY */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 flex items-center gap-4 shadow-sm">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><Calculator size={20}/></div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase">Total Bill</p>
-              <p className="text-xl font-black text-[#001D3D]">Rs {amounts.totalAmount.toLocaleString()}</p>
-            </div>
-          </div>
+function Input({ className, ...props }) {
+  return <input {...props} className={className} />;
+}
 
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 flex items-center gap-4 shadow-sm">
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><Banknote size={20}/></div>
-            <div className="flex-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase">Received</p>
-              <input type="number" value={amounts.receivedAmount} onChange={(e) => setAmounts({...amounts, receivedAmount: e.target.value})} className="w-full text-xl font-black outline-none bg-transparent" placeholder="0" />
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 flex items-center gap-4 shadow-sm">
-            <div className="p-3 bg-rose-50 text-rose-600 rounded-xl"><Clock size={20}/></div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase">Dues</p>
-              <p className="text-xl font-black text-rose-600">Rs {amounts.remainingAmount.toLocaleString()}</p>
-            </div>
-          </div>
-
-          {/* NEW PROFIT BOX */}
-          <div className="bg-gradient-to-br from-indigo-600 to-blue-800 p-6 rounded-3xl flex items-center gap-4 shadow-lg text-white">
-            <div className="p-3 bg-white/20 text-white rounded-xl"><TrendingUp size={20}/></div>
-            <div>
-              <p className="text-[10px] font-black text-indigo-100 uppercase">Net Profit</p>
-              <p className="text-xl font-black">Rs {amounts.totalProfit.toLocaleString()}</p>
-            </div>
-          </div>
+function MiniStat({ icon: Icon, label, value, softInset, danger }) {
+  return (
+    <div className={cn("rounded-2xl p-3", softInset, "bg-white/25")}>
+      <div className="flex items-center gap-2">
+        <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center", softInset, "bg-white/20")}>
+          <Icon size={16} className={danger ? "text-rose-600" : "text-blue-600"} />
         </div>
-
-        <button type="submit" disabled={loading} className={`${themeDarkBlue} w-full text-white py-6 rounded-[2rem] font-black text-xl shadow-xl hover:scale-[1.01] transition-all`}>
-          {loading ? "SAVING..." : "FINALIZE DISPATCH & PRINT"}
-        </button>
-      </form>
-
-      {/* PRINT PREVIEW */}
-      <div style={{ display: 'none' }}>
-        <div ref={componentRef}>
-            <SalesInvoiceBill data={{ ...customerData, items, totalAmount: amounts.totalAmount, receivedAmount: amounts.receivedAmount, remainingAmount: amounts.remainingAmount }} />
+        <div className="min-w-0">
+          <p className="text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">{label}</p>
+          <p className={cn("text-[12px] font-black truncate", danger ? "text-rose-700" : "text-slate-900")}>
+            {value}
+          </p>
         </div>
       </div>
     </div>
