@@ -6,7 +6,9 @@ import PurchaseScrap from '../dashboardPages/purchaseScrap'
 import SalesRecords from '../dashboardPages/sellScrap'
 import Records from '../dashboardPages/Records'
 import PendingPayments from '../dashboardPages/pendingPayments'
-
+import PendingView from '../dashboardPages/viewpendingPayments'
+import PendingEdit from '../dashboardPages/editpendingPayments'
+import Profits from '../dashboardPages/profits'
 export default function AppRouter() {
     return (
         <Router>
@@ -14,17 +16,21 @@ export default function AppRouter() {
                 {/* 1. Login Page */}
                 <Route path='/' element={<Login />} />
 
-           
+
                 <Route path='/dashboard' element={<Dashboard />} />
 
-           
+
                 <Route path='/purchase' element={<PurchaseScrap />} />
                 <Route path='/sale' element={<SalesRecords />} />
-                <Route path='/profits' element={<Records />} />
+                <Route path='/profits' element={<Profits />} />
                 <Route path='/salesrecords' element={<Records />} />
                 <Route path='/purchaserecords' element={<Records />} />
+
+
                 <Route path='/PendingPayments' element={<PendingPayments />} />
 
+                <Route path="/pendingpayments/view/:id" element={<PendingView />} />
+                <Route path="/pendingpayments/edit/:id" element={<PendingEdit/>} />
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </Router>

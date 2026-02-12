@@ -191,8 +191,9 @@ export default function SalesRecords() {
         receivedAmount: totals.received,
         remainingAmount: totals.remaining,
         profit: totals.totalProfit,
-        type: "sales",
-        timestamp: serverTimestamp(),
+        type: "sell",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       };
 
       await addDoc(collection(db, "transactions"), salesData);

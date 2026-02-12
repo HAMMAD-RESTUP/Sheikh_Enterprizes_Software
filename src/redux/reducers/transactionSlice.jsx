@@ -1,19 +1,12 @@
 // src/redux/reducers/transactionsSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import {
-  collection,
-  getDocs,
-  orderBy,
-  query,
-  where,
-  Timestamp,
-} from "firebase/firestore";
+import { collection, getDocs, orderBy, query, where, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase/firebaseConfig";
 
 /**
- * PRODUCTION RULES:
- * - type: ONLY "sell" | "purchase"
- * - time field: createdAt (serverTimestamp)
+ * RULES:
+ * - type: "sell" | "purchase"
+ * - time: createdAt (serverTimestamp) OR timestamp
  * - pending: remainingAmount > 0
  */
 
@@ -30,50 +23,68 @@ const normalizeType = (type) => {
   return t;
 };
 
-const getCreatedAtMillis = (t) => {
-  const raw = t?.createdAt || t?.timestamp || t?.date;
+// ✅ Convert Firestore Timestamp / Date / number / string -> millis number (serializable)
+const toMillis = (raw) => {
   if (!raw) return 0;
-  if (typeof raw?.toDate === "function") return raw.toDate().getTime();
-  const d = raw instanceof Date ? raw : new Date(raw);
+  if (typeof raw?.toMillis === "function") return raw.toMillis(); // Firestore Timestamp
+  if (typeof raw?.toDate === "function") return raw.toDate().getTime(); // Firestore Timestamp fallback
+  if (raw instanceof Date) return raw.getTime();
+  if (typeof raw === "number") return raw;
+  const d = new Date(raw);
   return Number.isNaN(d.getTime()) ? 0 : d.getTime();
 };
 
+const pickCreatedAtMillis = (t) => {
+  // prefer createdAt then timestamp then date then time
+  return (
+    toMillis(t?.createdAt) ||
+    toMillis(t?.timestamp) ||
+    toMillis(t?.date) ||
+    toMillis(t?.time) ||
+    0
+  );
+};
+
+// ✅ IMPORTANT: remove non-serializable fields from state
+const stripNonSerializable = (t) => {
+  const copy = { ...t };
+
+  // if they are Firestore Timestamp objects, replace with millis
+  copy.createdAt = toMillis(copy.createdAt);
+  copy.updatedAt = toMillis(copy.updatedAt);
+  copy.timestamp = toMillis(copy.timestamp);
+  copy.date = toMillis(copy.date);
+  copy.time = toMillis(copy.time);
+
+  return copy;
+};
+
 const normalizeTransaction = (doc) => {
-  const t = { ...doc };
+  // ✅ strip timestamps first
+  const t = stripNonSerializable(doc);
+
   t.type = normalizeType(t.type);
 
-  // Party name (unified)
-  t.partyName =
-    t.partyName ||
-    t.customerName ||
-    t.sellerName ||
-    t.name ||
-    "—";
+  // Party unified
+  t.partyName = t.partyName || t.customerName || t.sellerName || t.name || "—";
+  t.partyContact = t.partyContact || t.customerContact || t.contact || t.sellerContact || "";
 
-  // Party contact (unified)
-  t.partyContact =
-    t.partyContact ||
-    t.customerContact ||
-    t.contact ||
-    t.sellerContact ||
-    "";
-
-  // Amounts (unified + calculated)
+  // Amounts unified
   t.totalAmount = safeNum(t.totalAmount);
   t.paidAmount = safeNum(t.paidAmount ?? t.receivedAmount ?? 0);
 
-  // IMPORTANT: if remainingAmount missing/incorrect, compute it
+  // remaining calc
   const providedRemaining = doc?.remainingAmount;
   t.remainingAmount =
     providedRemaining == null
       ? Math.max(t.totalAmount - t.paidAmount, 0)
       : Math.max(safeNum(providedRemaining), 0);
 
-  // Profit (sell only)
+  // Profit
   t.profit = t.type === "sell" ? safeNum(t.profit) : 0;
 
-  // For UI sorting
-  t.__createdAtMillis = getCreatedAtMillis(t);
+  // createdAt millis for sorting/metrics
+  t.__createdAtMillis = pickCreatedAtMillis(t);
 
   // Items normalize
   if (Array.isArray(t.items)) {
@@ -130,8 +141,7 @@ const calcMetricsFromList = (list) => {
     d1.getDate() === d2.getDate();
 
   const isSameMonth = (d1, d2) =>
-    d1.getFullYear() === d2.getFullYear() &&
-    d1.getMonth() === d2.getMonth();
+    d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth();
 
   const isSameYear = (d1, d2) => d1.getFullYear() === d2.getFullYear();
 
@@ -160,21 +170,15 @@ const calcMetricsFromList = (list) => {
    Thunks
 ======================= */
 
-/**
- * Fetch all transactions (newest first)
- */
 export const fetchTransactions = createAsyncThunk(
   "transactions/fetchTransactions",
   async (_, { rejectWithValue }) => {
     try {
-      const q = query(collection(db, "transactions"), orderBy("createdAt", "desc"));
-      const snap = await getDocs(q);
+      const qy = query(collection(db, "transactions"), orderBy("createdAt", "desc"));
+      const snap = await getDocs(qy);
 
-      const rows = snap.docs.map((d) =>
-        normalizeTransaction({ id: d.id, ...d.data() })
-      );
+      const rows = snap.docs.map((d) => normalizeTransaction({ id: d.id, ...d.data() }));
 
-      // (extra safety) ensure sorted newest first even if some docs missing createdAt
       rows.sort((a, b) => (b.__createdAtMillis || 0) - (a.__createdAtMillis || 0));
       return rows;
     } catch (err) {
@@ -183,27 +187,20 @@ export const fetchTransactions = createAsyncThunk(
   }
 );
 
-/**
- * Fetch only pending (remainingAmount > 0)
- * NOTE: This query needs composite index if you change orderBy to createdAt.
- * Current: remainingAmount filter + orderBy remainingAmount (works)
- */
 export const fetchPendingTransactions = createAsyncThunk(
   "transactions/fetchPendingTransactions",
   async (_, { rejectWithValue }) => {
     try {
-      const q = query(
+      // NOTE: if you want newest pending first, use orderBy("createdAt","desc") and create index.
+      const qy = query(
         collection(db, "transactions"),
         where("remainingAmount", ">", 0),
         orderBy("remainingAmount", "desc")
       );
 
-      const snap = await getDocs(q);
-      const rows = snap.docs.map((d) =>
-        normalizeTransaction({ id: d.id, ...d.data() })
-      );
+      const snap = await getDocs(qy);
+      const rows = snap.docs.map((d) => normalizeTransaction({ id: d.id, ...d.data() }));
 
-      // If you prefer newest pending first, switch query to orderBy("createdAt","desc") and create index.
       rows.sort((a, b) => (b.__createdAtMillis || 0) - (a.__createdAtMillis || 0));
       return rows;
     } catch (err) {
@@ -212,10 +209,6 @@ export const fetchPendingTransactions = createAsyncThunk(
   }
 );
 
-/**
- * Fetch by date range (createdAt between start/end)
- * start/end should be JS Date objects
- */
 export const fetchTransactionsByDateRange = createAsyncThunk(
   "transactions/fetchTransactionsByDateRange",
   async ({ start, end }, { rejectWithValue }) => {
@@ -223,17 +216,15 @@ export const fetchTransactionsByDateRange = createAsyncThunk(
       const startTs = Timestamp.fromDate(start);
       const endTs = Timestamp.fromDate(end);
 
-      const q = query(
+      const qy = query(
         collection(db, "transactions"),
         where("createdAt", ">=", startTs),
         where("createdAt", "<=", endTs),
         orderBy("createdAt", "desc")
       );
 
-      const snap = await getDocs(q);
-      const rows = snap.docs.map((d) =>
-        normalizeTransaction({ id: d.id, ...d.data() })
-      );
+      const snap = await getDocs(qy);
+      const rows = snap.docs.map((d) => normalizeTransaction({ id: d.id, ...d.data() }));
 
       rows.sort((a, b) => (b.__createdAtMillis || 0) - (a.__createdAtMillis || 0));
       return rows;
@@ -282,6 +273,7 @@ const transactionsSlice = createSlice({
     },
 
     upsertTransactionLocal: (state, action) => {
+      // ✅ local upsert bhi normalize (timestamp ms banega)
       const t = normalizeTransaction(action.payload);
       const idx = state.list.findIndex((x) => x.id === t.id);
 
@@ -290,7 +282,6 @@ const transactionsSlice = createSlice({
 
       state.list.sort((a, b) => (b.__createdAtMillis || 0) - (a.__createdAtMillis || 0));
 
-      // keep pending in sync
       state.pending = state.list.filter((x) => safeNum(x.remainingAmount) > 0).slice(0, 200);
 
       state.summary = calcSummaryFromList(state.list);
@@ -303,7 +294,6 @@ const transactionsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // fetchTransactions
       .addCase(fetchTransactions.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -312,7 +302,6 @@ const transactionsSlice = createSlice({
         state.loading = false;
         state.list = action.payload;
 
-        // keep pending synced locally too (so dashboard can use either)
         state.pending = state.list.filter((x) => safeNum(x.remainingAmount) > 0).slice(0, 200);
 
         state.summary = calcSummaryFromList(state.list);
@@ -323,7 +312,6 @@ const transactionsSlice = createSlice({
         state.error = action.payload || action.error.message || "Unknown error";
       })
 
-      // fetchPendingTransactions
       .addCase(fetchPendingTransactions.pending, (state) => {
         state.pendingLoading = true;
         state.error = null;
@@ -337,7 +325,6 @@ const transactionsSlice = createSlice({
         state.error = action.payload || action.error.message || "Unknown error";
       })
 
-      // fetchTransactionsByDateRange
       .addCase(fetchTransactionsByDateRange.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -358,11 +345,7 @@ const transactionsSlice = createSlice({
   },
 });
 
-export const {
-  removeTransaction,
-  upsertTransactionLocal,
-  clearTransactionsError,
-} = transactionsSlice.actions;
+export const { removeTransaction, upsertTransactionLocal, clearTransactionsError } =
+  transactionsSlice.actions;
 
 export default transactionsSlice.reducer;
-

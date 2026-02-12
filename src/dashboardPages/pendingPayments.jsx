@@ -2,11 +2,21 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+
+// ✅ slice
 import { fetchTransactions } from "../redux/reducers/transactionSlice";
-import { ArrowLeft, Calendar, Search, AlertTriangle, CheckCircle2 } from "lucide-react";
+
+import {
+  ArrowLeft,
+  Calendar,
+  Search,
+  AlertTriangle,
+  CheckCircle2,
+  Eye,
+  Pencil,
+} from "lucide-react";
 
 const cn = (...c) => c.filter(Boolean).join(" ");
-
 const getDateFromTx = (t) => t?.createdAt || t?.timestamp || t?.date || t?.time;
 
 const formatDate = (t) => {
@@ -68,19 +78,21 @@ export default function PendingPayments() {
   const { list = [], loading = false } = useSelector((s) => s.transactions || {});
 
   useEffect(() => {
-    // ensure latest data
     dispatch(fetchTransactions());
   }, [dispatch]);
 
   const pending = useMemo(() => {
-    const only = (Array.isArray(list) ? list : []).filter((t) => Number(t?.remainingAmount || 0) > 0);
+    const only = (Array.isArray(list) ? list : []).filter(
+      (t) => Number(t?.remainingAmount || 0) > 0
+    );
 
-    // newest first
     only.sort((a, b) => {
       const da = getDateFromTx(a);
       const db = getDateFromTx(b);
-      const aMs = typeof da?.toDate === "function" ? da.toDate().getTime() : new Date(da || 0).getTime();
-      const bMs = typeof db?.toDate === "function" ? db.toDate().getTime() : new Date(db || 0).getTime();
+      const aMs =
+        typeof da?.toDate === "function" ? da.toDate().getTime() : new Date(da || 0).getTime();
+      const bMs =
+        typeof db?.toDate === "function" ? db.toDate().getTime() : new Date(db || 0).getTime();
       return bMs - aMs;
     });
 
@@ -144,19 +156,20 @@ export default function PendingPayments() {
                   <th className="px-8 py-5 text-right">Total</th>
                   <th className="px-8 py-5 text-right">Due</th>
                   <th className="px-8 py-5 text-right">Status</th>
+                  <th className="px-8 py-5 text-right">Actions</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-white/50">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-8 py-10 text-center text-slate-500 font-semibold">
+                    <td colSpan={8} className="px-8 py-10 text-center text-slate-500 font-semibold">
                       Loading...
                     </td>
                   </tr>
                 ) : pending.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-8 py-10 text-center text-slate-600 font-semibold">
+                    <td colSpan={8} className="px-8 py-10 text-center text-slate-600 font-semibold">
                       No pending payments 🎉
                     </td>
                   </tr>
@@ -175,9 +188,7 @@ export default function PendingPayments() {
                           <TypePill type={t.type} />
                         </td>
                         <td className="px-8 py-5 text-slate-900 font-bold">{party}</td>
-                        <td className="px-8 py-5 text-slate-700 font-extrabold">
-                          {t.invoiceNo || "—"}
-                        </td>
+                        <td className="px-8 py-5 text-slate-700 font-extrabold">{t.invoiceNo || "—"}</td>
                         <td className="px-8 py-5 text-right font-extrabold text-slate-900">
                           Rs. {Number(t.totalAmount || 0).toLocaleString()}
                         </td>
@@ -186,6 +197,27 @@ export default function PendingPayments() {
                         </td>
                         <td className="px-8 py-5 text-right">
                           <StatusPill remaining={t.remainingAmount} />
+                        </td>
+
+                        {/* ✅ Actions */}
+                        <td className="px-8 py-5">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => navigate(`/pendingpayments/view/${t.id}`)}
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/50 backdrop-blur-xl border border-white/70 shadow-sm hover:bg-white/70 transition active:scale-95 text-slate-700 text-[10px] font-black uppercase tracking-wider"
+                            >
+                              <Eye size={14} />
+                              View
+                            </button>
+
+                            <button
+                              onClick={() => navigate(`/pendingpayments/edit/${t.id}`)}
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 hover:bg-blue-600 text-white shadow-sm transition active:scale-95 text-[10px] font-black uppercase tracking-wider"
+                            >
+                              <Pencil size={14} />
+                              Edit
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

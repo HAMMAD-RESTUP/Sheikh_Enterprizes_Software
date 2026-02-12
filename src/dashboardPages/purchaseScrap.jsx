@@ -164,7 +164,7 @@ export default function PurchaseScrap() {
         })
       );
 
-      if (toNum(invoiceData.remainingAmount) > 0) navigate("/dashboard/pending");
+      if (toNum(invoiceData.remainingAmount) > 0) navigate("/PendingPayments");
       else navigate("/dashboard");
 
       setSupplier({ name: "", phone: "" });

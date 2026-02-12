@@ -3,6 +3,6 @@ import transactionSlice from './reducers/transactionSlice'; // Path check kar le
 
 export const store = configureStore({
   reducer: {
-    scrap: transactionSlice,
+    transactions: transactionSlice,
   },
 });
