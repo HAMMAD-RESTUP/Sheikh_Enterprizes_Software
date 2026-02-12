@@ -19,7 +19,6 @@ import {
   Calculator,
   Banknote,
   Clock,
-  TrendingUp,
   Printer,
 } from "lucide-react";
 
@@ -30,6 +29,22 @@ const toNum = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 const money = (n) => (Number.isFinite(n) ? n.toLocaleString() : "0");
+
+/* ================= Glass Background (same as your new dashboard) ================= */
+const GlassBackground = () => (
+  <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+    <div className="absolute inset-0 bg-[#F8FAFC]" />
+
+    {/* left biased glow (glass nazar aata hai) */}
+    <div className="absolute inset-0 bg-[radial-gradient(980px_circle_at_12%_18%,rgba(99,102,241,0.26),transparent_58%),radial-gradient(980px_circle_at_18%_72%,rgba(59,130,246,0.22),transparent_62%),radial-gradient(980px_circle_at_82%_22%,rgba(14,165,233,0.12),transparent_60%)]" />
+
+    {/* subtle grid */}
+    <div className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(to_right,rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.06)_1px,transparent_1px)] [background-size:44px_44px]" />
+
+    {/* premium noise */}
+    <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay [background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22160%22 height=%22160%22 filter=%22url(%23n)%22 opacity=%220.25%22/%3E%3C/svg%3E')]" />
+  </div>
+);
 
 /* ========= Invoice No Generator ========= */
 const getNextInvoiceID = async (type) => {
@@ -74,24 +89,25 @@ export default function SalesRecords() {
 
   const componentRef = useRef(null);
 
-  /* ====== Theme (same as Purchase page) ====== */
+  /* ====== Theme (Glass like dashboard/purchase) ====== */
+  const fontStack = "Inter, system-ui, -apple-system, sans-serif";
   const pageWrap = "min-h-screen relative bg-[#F8FAFC] text-slate-900";
-  const bg = (
-    <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-      <div className="absolute inset-0 bg-[#F8FAFC]" />
-      <div className="absolute inset-0 bg-[radial-gradient(950px_circle_at_18%_18%,rgba(59,130,246,0.12),transparent_55%),radial-gradient(900px_circle_at_84%_26%,rgba(14,165,233,0.1),transparent_55%)]" />
-      <div className="absolute inset-0 opacity-[0.15] [background-image:linear-gradient(to_right,rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.06)_1px,transparent_1px)] [background-size:40px_40px]" />
-    </div>
-  );
 
   const card =
-    "bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_10px_30px_rgba(15,23,42,0.06)] rounded-[2.4rem] overflow-hidden";
-  const cardHeader = "bg-white/20 border-b border-white/60";
+    "relative overflow-hidden bg-white/30 backdrop-blur-3xl backdrop-saturate-[180%] border border-white/55 ring-1 ring-white/25 shadow-[0_24px_80px_-55px_rgba(2,6,23,0.55)] rounded-[2.6rem]";
+  const sheen =
+    "before:absolute before:inset-0 before:pointer-events-none before:content-[''] before:bg-[linear-gradient(180deg,rgba(255,255,255,0.85),rgba(255,255,255,0.25),rgba(255,255,255,0.55))] before:opacity-45";
+  const cardHeader = "bg-white/18 border-b border-white/45";
   const softInset =
-    "bg-white/20 border border-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]";
+    "bg-white/22 border border-white/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]";
+
   const inputBase =
-    "w-full rounded-2xl bg-white/30 border border-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] text-slate-800 placeholder:text-slate-400/80 outline-none transition";
-  const inputFocus = "focus:bg-white/45 focus:border-blue-300 focus:ring-4 focus:ring-blue-100/60";
+    "w-full rounded-2xl bg-white/24 backdrop-blur-xl border border-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] text-slate-900 placeholder:text-slate-400/80 outline-none transition";
+  const inputFocus =
+    "focus:bg-white/40 focus:border-blue-300 focus:ring-4 focus:ring-blue-100/60";
+
+  const pillBtn =
+    "bg-white/30 backdrop-blur-2xl border border-white/60 ring-1 ring-white/20 shadow-sm hover:bg-white/42 transition active:scale-95";
 
   /* ====== Invoice No Fetch ====== */
   useEffect(() => {
@@ -223,28 +239,28 @@ export default function SalesRecords() {
   }, [customerData.customerName, customerData.customerContact, items, totals.totalAmount, loading]);
 
   return (
-    <div className={pageWrap}>
-      {bg}
+    <div className={pageWrap} style={{ fontFamily: fontStack }}>
+      <GlassBackground />
 
-      {/* HEADER (same vibe as Purchase) */}
-      <header className="sticky top-0 z-30 px-6 md:px-10 py-6 flex items-center justify-between bg-transparent backdrop-blur-sm">
+      {/* HEADER (glassy) */}
+      <header className="sticky top-0 z-30 px-6 md:px-10 py-6 flex items-center justify-between bg-transparent backdrop-blur-md">
         <div className="flex items-center gap-5">
-          <div className={cn("w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center text-slate-800", softInset)}>
+          <div className={cn("w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center text-slate-900", softInset, "bg-white/25")}>
             <Truck size={24} />
           </div>
           <div className="leading-tight">
             <h1 className="text-[18px] md:text-[20px] font-extrabold tracking-tight text-slate-900">
               Sales Dispatch
             </h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">
               Profit enabled
             </p>
           </div>
         </div>
 
-        <div className={cn("px-5 py-3 rounded-2xl flex items-center gap-3", softInset)}>
-          <Hash size={18} className="text-blue-600" />
-          <p className="text-[13px] md:text-[15px] font-black text-slate-900">{customerData.invoiceNo}</p>
+        <div className={cn("px-5 py-3 rounded-2xl flex items-center gap-3", pillBtn, "text-slate-900")}>
+          <Hash size={18} className="text-blue-700" />
+          <p className="text-[13px] md:text-[15px] font-black">{customerData.invoiceNo}</p>
         </div>
       </header>
 
@@ -254,14 +270,14 @@ export default function SalesRecords() {
           {/* LEFT */}
           <div className="lg:col-span-2 space-y-6">
             {/* CUSTOMER */}
-            <section className={cn(card, "hover:shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition")}>
+            <section className={cn(card, sheen, "hover:shadow-[0_34px_110px_-70px_rgba(2,6,23,0.70)] transition")}>
               <div className={cn("p-7", cardHeader)}>
-                <h2 className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-500">
+                <h2 className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-600">
                   Customer
                 </h2>
               </div>
 
-              <div className="p-7 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-7 grid grid-cols-1 md:grid-cols-3 gap-4 relative">
                 <Input
                   required
                   name="customerName"
@@ -289,9 +305,9 @@ export default function SalesRecords() {
             </section>
 
             {/* ITEMS */}
-            <section className={cn(card, "hover:shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition")}>
+            <section className={cn(card, sheen, "hover:shadow-[0_34px_110px_-70px_rgba(2,6,23,0.70)] transition")}>
               <div className={cn("p-7 flex items-center justify-between gap-4", cardHeader)}>
-                <h2 className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-500">
+                <h2 className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-600">
                   Items
                 </h2>
                 <button
@@ -304,18 +320,18 @@ export default function SalesRecords() {
                 </button>
               </div>
 
-              <div className="p-7 space-y-3">
+              <div className="p-7 space-y-3 relative">
                 {items.map((item) => (
                   <div
                     key={item.id}
                     className={cn(
                       "grid grid-cols-1 md:grid-cols-12 gap-3 rounded-2xl p-4 transition",
-                      "bg-white/20 border border-white/60 hover:bg-white/30"
+                      "bg-white/18 border border-white/45 hover:bg-white/26"
                     )}
                   >
                     <div className="md:col-span-3">
                       <input
-                        className={cn(inputBase, inputFocus, "px-4 py-3 font-bold bg-white/15 border-white/60")}
+                        className={cn(inputBase, inputFocus, "px-4 py-3 font-bold")}
                         placeholder="Item Name"
                         value={item.itemDescription}
                         onChange={(e) => handleItemChange(item.id, "itemDescription", e.target.value)}
@@ -325,7 +341,7 @@ export default function SalesRecords() {
                     <div className="md:col-span-2">
                       <input
                         type="number"
-                        className={cn(inputBase, inputFocus, "px-4 py-3 font-black text-center text-blue-700 bg-white/15 border-white/60")}
+                        className={cn(inputBase, inputFocus, "px-4 py-3 font-black text-center text-blue-700")}
                         placeholder="Qty (KG)"
                         value={item.quantity}
                         onChange={(e) => handleItemChange(item.id, "quantity", e.target.value)}
@@ -335,7 +351,7 @@ export default function SalesRecords() {
                     <div className="md:col-span-2">
                       <input
                         type="number"
-                        className={cn(inputBase, inputFocus, "px-4 py-3 font-black text-center text-emerald-700 bg-white/15 border-white/60")}
+                        className={cn(inputBase, inputFocus, "px-4 py-3 font-black text-center text-emerald-700")}
                         placeholder="My Cost"
                         value={item.purchaseRate}
                         onChange={(e) => handleItemChange(item.id, "purchaseRate", e.target.value)}
@@ -348,7 +364,7 @@ export default function SalesRecords() {
                     <div className="md:col-span-2">
                       <input
                         type="number"
-                        className={cn(inputBase, inputFocus, "px-4 py-3 font-black text-center text-blue-700 bg-white/15 border-white/60")}
+                        className={cn(inputBase, inputFocus, "px-4 py-3 font-black text-center text-blue-700")}
                         placeholder="Sale Rate"
                         value={item.ratePerKg}
                         onChange={(e) => handleItemChange(item.id, "ratePerKg", e.target.value)}
@@ -360,9 +376,13 @@ export default function SalesRecords() {
 
                     <div className="md:col-span-2 flex md:block items-center justify-between md:text-right">
                       <div className="md:text-right">
-                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-wider">Subtotal</p>
-                        <p className="text-[16px] font-black text-slate-900">Rs {money(item.total)}</p>
-                        <p className="text-[10px] font-black text-indigo-600 mt-1">
+                        <p className="text-[10px] text-slate-600 font-black uppercase tracking-wider">
+                          Subtotal
+                        </p>
+                        <p className="text-[16px] font-black text-slate-900">
+                          Rs {money(item.total)}
+                        </p>
+                        <p className="text-[10px] font-black text-indigo-700 mt-1">
                           Profit: Rs {money(item.itemProfit)}
                         </p>
                       </div>
@@ -371,7 +391,7 @@ export default function SalesRecords() {
                     <button
                       type="button"
                       onClick={() => removeItem(item.id)}
-                      className="md:col-span-1 flex md:justify-end items-center justify-end text-rose-500 hover:bg-rose-50/60 rounded-xl px-2 transition"
+                      className="md:col-span-1 flex md:justify-end items-center justify-end text-rose-600 hover:bg-rose-50/60 rounded-xl px-2 transition"
                       title="Remove"
                     >
                       <Trash2 size={18} />
@@ -385,46 +405,49 @@ export default function SalesRecords() {
           {/* RIGHT: SUMMARY */}
           <div className="lg:col-span-1">
             <div className="sticky top-28 space-y-6">
-              {/* Summary Card */}
-              <section className={cn(card, "shadow-[0_25px_70px_rgba(15,23,42,0.08)]")}>
+              <section className={cn(card, sheen, "shadow-[0_34px_110px_-70px_rgba(2,6,23,0.70)]")}>
                 <div className={cn("p-7", cardHeader)}>
-                  <h2 className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  <h2 className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-600">
                     Summary
                   </h2>
                 </div>
 
-                <div className="p-7 space-y-5">
-                  <div className={cn("rounded-[2rem] p-6", softInset, "bg-white/25")}>
+                <div className="p-7 space-y-5 relative">
+                  <div className={cn("rounded-[2rem] p-6", softInset, "bg-white/18")}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Total</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
+                          Total
+                        </p>
                         <p className="mt-2 text-[34px] font-black tracking-tighter text-slate-900 leading-none">
                           Rs. {money(totals.totalAmount)}
                         </p>
                       </div>
 
                       <div className="text-right">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Profit</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
+                          Profit
+                        </p>
                         <p className="mt-2 text-[16px] font-black text-indigo-700">
                           Rs. {money(totals.totalProfit)}
                         </p>
                       </div>
                     </div>
 
-                    <div className="mt-5 h-px bg-white/70" />
+                    <div className="mt-5 h-px bg-white/60" />
 
-                    <label className="mt-5 block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                    <label className="mt-5 block text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
                       Received
                     </label>
                     <div className="relative mt-2">
-                      <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-slate-400/80">
+                      <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-slate-500">
                         Rs.
                       </span>
                       <input
                         type="number"
                         value={receivedAmount}
                         onChange={(e) => setReceivedAmount(e.target.value)}
-                        className={cn(inputBase, inputFocus, "pl-14 pr-5 py-4 font-black text-2xl bg-white/30 border-white/70")}
+                        className={cn(inputBase, inputFocus, "pl-14 pr-5 py-4 font-black text-2xl")}
                         placeholder="0"
                       />
                     </div>
@@ -463,14 +486,13 @@ export default function SalesRecords() {
                       "w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-2",
                       canSubmit
                         ? "bg-slate-900 hover:bg-blue-600 text-white shadow-lg shadow-blue-900/20"
-                        : "bg-white/30 text-slate-400 cursor-not-allowed border border-white/60"
+                        : "bg-white/20 text-slate-400 cursor-not-allowed border border-white/50"
                     )}
                   >
                     <Printer size={18} />
                     {loading ? "Saving..." : "Finalize & Print"}
                   </button>
 
-                  {/* Mini stat strip (optional but clean) */}
                   <div className="grid grid-cols-3 gap-3">
                     <MiniStat icon={Calculator} label="Bill" value={`Rs ${money(totals.totalAmount)}`} softInset={softInset} />
                     <MiniStat icon={Banknote} label="Recv" value={`Rs ${money(totals.received)}`} softInset={softInset} />
@@ -478,8 +500,6 @@ export default function SalesRecords() {
                   </div>
                 </div>
               </section>
-
-              {/* (You had a profit gradient box before — now it’s integrated cleanly in summary.) */}
             </div>
           </div>
         </form>
@@ -509,13 +529,13 @@ function Input({ className, ...props }) {
 
 function MiniStat({ icon: Icon, label, value, softInset, danger }) {
   return (
-    <div className={cn("rounded-2xl p-3", softInset, "bg-white/25")}>
+    <div className={cn("rounded-2xl p-3", softInset, "bg-white/18")}>
       <div className="flex items-center gap-2">
-        <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center", softInset, "bg-white/20")}>
-          <Icon size={16} className={danger ? "text-rose-600" : "text-blue-600"} />
+        <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center", softInset, "bg-white/18")}>
+          <Icon size={16} className={danger ? "text-rose-600" : "text-blue-700"} />
         </div>
         <div className="min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">{label}</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.22em] text-slate-600">{label}</p>
           <p className={cn("text-[12px] font-black truncate", danger ? "text-rose-700" : "text-slate-900")}>
             {value}
           </p>
