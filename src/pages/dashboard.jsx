@@ -403,7 +403,7 @@ export default function Dashboard() {
               </button>
 
               <button
-                onClick={() => navigate("/sale")}
+                onClick={() => navigate("/sell")}
                 className="w-full py-4.5 rounded-2xl font-black text-xs text-slate-900 flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-wider
                            bg-white/55 hover:bg-white/70 border border-white/60 backdrop-blur-xl"
               >
@@ -414,10 +414,10 @@ export default function Dashboard() {
 
           <div className="bg-white/35 backdrop-blur-2xl backdrop-saturate-[170%] p-6 rounded-[2.6rem] border border-white/55 ring-1 ring-white/25 shadow-[0_18px_55px_-34px_rgba(2,6,23,0.35)]">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-600">
-              Pro Tip
+              🔔  Reminder
             </p>
             <p className="mt-2 text-slate-800 font-bold">
-              Clear “Due” payments to remove rows from pending list automatically.
+              Clear “Due” payments from pending Payments automatically.
             </p>
           </div>
         </div>
@@ -433,7 +433,7 @@ export default function Dashboard() {
       onClick: () => navigate("/dashboard"),
     },
     { icon: Users, label: "Profits History", onClick: () => navigate("/profits") },
-    { icon: FileText, label: "Seller Records", onClick: () => navigate("/salesrecords") },
+    { icon: FileText, label: "Seller Records", onClick: () => navigate("/sellerRecords") },
     { icon: History, label: "Purchase Records", onClick: () => navigate("/purchaserecords") },
     { icon: Wallet, label: "Pending Payments", onClick: () => navigate("/PendingPayments") },
   ];

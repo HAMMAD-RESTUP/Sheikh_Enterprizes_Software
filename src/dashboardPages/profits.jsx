@@ -4,8 +4,7 @@ import { useDispatch, useSelector, shallowEqual } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { fetchTransactions } from "../redux/reducers/transactionSlice";
 
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { ProfitDownloader } from "../invoices components/profitPrintpdf"; // ✅ adjust path
 
 import {
   ArrowLeft,
@@ -23,7 +22,7 @@ const toNum = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
-const money = (n) => (Number.isFinite(n) ? n.toLocaleString() : "0");
+const money = (n) => (Number.isFinite(n) ? n.toLocaleString("en-PK") : "0");
 
 const getDateFromTx = (t) => t?.createdAt || t?.timestamp || t?.date || t?.time;
 const toDateObj = (raw) => {
@@ -34,16 +33,14 @@ const toDateObj = (raw) => {
   const d = new Date(raw);
   return Number.isNaN(d.getTime()) ? null : d;
 };
-
 const formatDate = (t) => {
   const d = toDateObj(getDateFromTx(t));
   if (!d) return "—";
-  return d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+  return d.toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" });
 };
-
 const normalizeType = (type) => {
   const t = String(type || "").toLowerCase().trim();
-  if (t === "sale" || t === "sales" || t === "selling") return "sell";
+  if (t === "sell" || t === "sells" || t === "selling") return "sell";
   if (t === "purchase" || t === "purchases" || t === "buy") return "purchase";
   return t;
 };
@@ -94,7 +91,6 @@ export default function Profits() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // ✅ memo-safe selector (avoid rerender warnings)
   const { list, loading } = useSelector(
     (s) => ({
       list: s.transactions?.list || [],
@@ -103,22 +99,20 @@ export default function Profits() {
     shallowEqual
   );
 
-  // default: current month
+  // default month
   const now = new Date();
   const [monthValue, setMonthValue] = useState(
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
   );
 
   useEffect(() => {
-    // ensure data
     if (!list?.length) dispatch(fetchTransactions());
   }, [dispatch]); // eslint-disable-line
 
-  // month range
   const { startDate, endDate } = useMemo(() => {
     const [y, m] = monthValue.split("-").map(Number);
     const start = new Date(y, m - 1, 1, 0, 0, 0);
-    const end = new Date(y, m, 0, 23, 59, 59); // last day of month
+    const end = new Date(y, m, 0, 23, 59, 59);
     return { startDate: start, endDate: end };
   }, [monthValue]);
 
@@ -151,11 +145,9 @@ export default function Profits() {
 
       if (t.type === "sell") {
         totalSells += totalAmount;
-        profit += toNum(t.profit); // your slice already calculates profit for sell
+        profit += toNum(t.profit);
       }
-      if (t.type === "purchase") {
-        totalPurchases += totalAmount;
-      }
+      if (t.type === "purchase") totalPurchases += totalAmount;
 
       if (remaining > 0) due += remaining;
     }
@@ -166,53 +158,16 @@ export default function Profits() {
   const monthLabel = useMemo(() => {
     const [y, m] = monthValue.split("-").map(Number);
     const d = new Date(y, m - 1, 1);
-    return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    return d.toLocaleDateString("en-PK", { month: "long", year: "numeric" });
   }, [monthValue]);
 
-  const downloadPDF = () => {
-    const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("Profit Report", 40, 50);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    doc.text(`Month: ${monthLabel}`, 40, 72);
-
-    doc.setFontSize(10);
-    doc.text(`Sales: Rs. ${money(totals.totalSells)}   Purchases: Rs. ${money(totals.totalPurchases)}   Profit: Rs. ${money(totals.profit)}   Due: Rs. ${money(totals.due)}`, 40, 92);
-
-    const body = monthRows.map((t) => {
-      const party = t.partyName || t.customerName || t.sellerName || "—";
-      return [
-        formatDate(t),
-        (t.invoiceNo || "—").toString(),
-        (t.type || "—").toString().toUpperCase(),
-        party,
-        `Rs. ${money(toNum(t.totalAmount))}`,
-        `Rs. ${money(toNum(t.paidAmount ?? t.receivedAmount ?? 0))}`,
-        `Rs. ${money(toNum(t.remainingAmount))}`,
-        t.type === "sell" ? `Rs. ${money(toNum(t.profit))}` : "—",
-      ];
+  const handleDownload = () => {
+    ProfitDownloader({
+      monthValue,
+      monthLabel,
+      rows: monthRows,
+      totals,
     });
-
-    autoTable(doc, {
-      startY: 115,
-      head: [["Date", "Invoice", "Type", "Party", "Total", "Paid", "Due", "Profit"]],
-      body,
-      styles: { font: "helvetica", fontSize: 9, cellPadding: 6 },
-      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: "bold" },
-      columnStyles: {
-        4: { halign: "right" },
-        5: { halign: "right" },
-        6: { halign: "right" },
-        7: { halign: "right" },
-      },
-      margin: { left: 40, right: 40 },
-    });
-
-    doc.save(`Profit_Report_${monthValue}.pdf`);
   };
 
   return (
@@ -220,12 +175,13 @@ export default function Profits() {
       {/* background */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-[#F8FAFC]" />
-        <div className="absolute inset-0 bg-[radial-gradient(950px_circle_at_18%_18%,rgba(59,130,246,0.12),transparent_55%),radial-gradient(900px_circle_at_84%_26%,rgba(14,165,233,0.10),transparent_55%)]" />
-        <div className="absolute inset-0 opacity-[0.15] [background-image:linear-gradient(to_right,rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.06)_1px,transparent_1px)] [background-size:40px_40px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(980px_circle_at_12%_18%,rgba(99,102,241,0.26),transparent_58%),radial-gradient(980px_circle_at_18%_72%,rgba(59,130,246,0.22),transparent_62%),radial-gradient(980px_circle_at_82%_22%,rgba(14,165,233,0.12),transparent_60%)]" />
+        <div className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(to_right,rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.06)_1px,transparent_1px)] [background-size:44px_44px]" />
+        <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay [background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22160%22 height=%22160%22 filter=%22url(%23n)%22 opacity=%220.25%22/%3E%3C/svg%3E')]" />
       </div>
 
       {/* header */}
-      <header className="sticky top-0 z-30 px-6 md:px-10 py-7 flex items-center justify-between bg-transparent backdrop-blur-sm">
+      <header className="sticky top-0 z-30 px-6 md:px-10 py-7 flex items-center justify-between bg-transparent backdrop-blur-md">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/dashboard")}
@@ -238,7 +194,7 @@ export default function Profits() {
           <div>
             <h1 className="text-2xl font-black tracking-tight text-slate-900">Profits</h1>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">
-              Month-wise report + PDF download
+              Month-wise report + Invoice-style PDF
             </p>
           </div>
         </div>
@@ -255,7 +211,7 @@ export default function Profits() {
           </div>
 
           <button
-            onClick={downloadPDF}
+            onClick={handleDownload}
             className="flex items-center gap-2 px-5 py-3 bg-slate-900 hover:bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-200/40 transition-all active:scale-95"
           >
             <Download size={18} />
@@ -270,11 +226,11 @@ export default function Profits() {
       <main className="relative z-10 max-w-[1400px] mx-auto px-6 md:px-10 pb-12">
         {/* stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
-          <StatCard label="Total Sales" value={totals.totalSells} icon={BarChart3} tone="emerald" sub={monthLabel} />
+          <StatCard label="Total Sell" value={totals.totalSells} icon={BarChart3} tone="emerald" sub={monthLabel} />
           <StatCard label="Total Purchases" value={totals.totalPurchases} icon={Landmark} tone="blue" sub={monthLabel} />
           <StatCard label="Profit (Sell)" value={totals.profit} icon={TrendingUp} tone="indigo" sub="Sum of sell profits" />
           <StatCard label="Outstanding Due" value={totals.due} icon={Wallet} tone="rose" sub="Receivable" />
-          <StatCard label="Net (Sales - Purchases)" value={totals.net} icon={TrendingUp} tone="slate" sub="Business net" />
+          <StatCard label="Net (Sell - Purchases)" value={totals.net} icon={TrendingUp} tone="slate" sub="Business net" />
         </div>
 
         {/* table */}
@@ -321,7 +277,7 @@ export default function Profits() {
                     const party = t.partyName || t.customerName || t.sellerName || "—";
                     const paid = toNum(t.paidAmount ?? t.receivedAmount ?? 0);
                     const due = toNum(t.remainingAmount);
-                    const prof = t.type === "sell" ? toNum(t.profit) : 0;
+                    const prof = normalizeType(t.type) === "sell" ? toNum(t.profit) : 0;
 
                     return (
                       <tr key={t.id} className="hover:bg-white/30 transition">
@@ -331,17 +287,11 @@ export default function Profits() {
                         </td>
                         <td className="px-8 py-5 text-slate-900 font-bold">{party}</td>
                         <td className="px-8 py-5 text-slate-700 font-extrabold">{t.invoiceNo || "—"}</td>
-                        <td className="px-8 py-5 text-right font-extrabold text-slate-900">
-                          Rs. {money(toNum(t.totalAmount))}
-                        </td>
-                        <td className="px-8 py-5 text-right font-extrabold text-slate-700">
-                          Rs. {money(paid)}
-                        </td>
-                        <td className="px-8 py-5 text-right font-extrabold text-rose-600">
-                          Rs. {money(due)}
-                        </td>
+                        <td className="px-8 py-5 text-right font-extrabold text-slate-900">Rs. {money(toNum(t.totalAmount))}</td>
+                        <td className="px-8 py-5 text-right font-extrabold text-slate-700">Rs. {money(paid)}</td>
+                        <td className="px-8 py-5 text-right font-extrabold text-rose-600">Rs. {money(due)}</td>
                         <td className="px-8 py-5 text-right font-extrabold text-indigo-700">
-                          {t.type === "sell" ? `Rs. ${money(prof)}` : "—"}
+                          {normalizeType(t.type) === "sell" ? `Rs. ${money(prof)}` : "—"}
                         </td>
                       </tr>
                     );

@@ -1,177 +1,208 @@
-import React from 'react';
-import LeftLogo from '../assets/logoleft.png';
-import RightLogo from '../assets/logoright.png';
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
-const SalesInvoiceBill = React.forwardRef(({ data }, ref) => {
-  // Current Date and Time
-  const date = new Date().toLocaleDateString('en-PK', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+const money = (v) => `Rs. ${Number(v || 0).toLocaleString("en-PK")}`;
+const safe = (v, fb = "") => (v === null || v === undefined || v === "" ? fb : String(v));
+
+export function downloadSellInvoicePDF({
+  invoiceNo,
+  buyerName,
+  buyerPhone,
+  address,
+  items,
+  totalAmount,
+  receivedAmount,
+  remainingAmount,
+  profit, // optional
+}) {
+  const doc = new jsPDF("p", "mm", "a4");
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 15;
+
+  // ✅ Same Colors as Purchase
+  const NAVY = [15, 23, 42];
+  const GOLD = [160, 130, 50];
+  const TEXT_DARK = [30, 41, 59];
+  const BORDER_LIGHT = [220, 225, 230];
+
+  // --- 1) Sidebar & Accent ---
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 0, 7, pageH, "F");
+  doc.setFillColor(...GOLD);
+  doc.rect(7, 0, 1.2, pageH, "F");
+
+  // --- 2) Header ---
+  let y = margin + 5;
+
+  doc.setTextColor(...NAVY);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(24);
+  doc.text("SHEIKH ENTERPRISES", margin + 8, y);
+
+  doc.setFontSize(16);
+  doc.setTextColor(...GOLD);
+  doc.text("& KHAN TRADERS", margin + 8, y + 8);
+
+  // Top Right: Sell Invoice Box
+  doc.setDrawColor(...NAVY);
+  doc.setLineWidth(0.4);
+  doc.rect(pageW - margin - 50, margin - 2, 50, 14, "S");
+  doc.setFontSize(9);
+  doc.setTextColor(...NAVY);
+  doc.text("SELL INVOICE", pageW - margin - 25, margin + 4, { align: "center" });
+  doc.setFontSize(11);
+  doc.text(`#${safe(invoiceNo, "SHK-0001")}`, pageW - margin - 25, margin + 9, { align: "center" });
+
+  // Address & Contacts (same as purchase)
+  y += 22;
+  doc.setTextColor(...TEXT_DARK);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Plot no 253, D N/R Farooq Masjid Haroonabad, Karachi", margin + 8, y);
+
+  y += 6;
+  doc.setFont("helvetica", "bold");
+  doc.text("Shehroz: 0300-9266210 | Jibran: 0323-1203286", margin + 8, y);
+
+  // --- 3) Buyer & Date Row ---
+  y += 12;
+
+  // Buyer box (same layout as purchase)
+  doc.setFillColor(245, 247, 250);
+  doc.rect(margin + 8, y, 90, 28, "F");
+  doc.setDrawColor(...BORDER_LIGHT);
+  doc.rect(margin + 8, y, 90, 28, "S");
+
+  doc.setFontSize(8);
+  doc.setTextColor(...GOLD);
+  doc.setFont("helvetica", "bold");
+  doc.text("BILL TO CUSTOMER", margin + 12, y + 6);
+
+  doc.setFontSize(12);
+  doc.setTextColor(...NAVY);
+  doc.text(safe(buyerName, "N/A").toUpperCase(), margin + 12, y + 14);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...TEXT_DARK);
+  doc.text(`Ph: ${safe(buyerPhone, "---")}`, margin + 12, y + 21);
+
+  const addr = safe(address, "");
+  if (addr) {
+    doc.setFontSize(8.5);
+    doc.setTextColor(...TEXT_DARK);
+    const addrLines = doc.splitTextToSize(`Dest: ${addr}`, 86);
+    doc.text(addrLines, margin + 12, y + 26);
+  }
+
+  // Date on right
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...NAVY);
+  doc.text("DATE:", pageW - margin - 40, y + 10);
+
+  const dateStr = new Date().toLocaleDateString("en-PK", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+  doc.setFont("helvetica", "normal");
+  doc.text(dateStr, pageW - margin, y + 10, { align: "right" });
+
+  y += 40;
+
+  // --- 4) Items Table (autoTable) ---
+  autoTable(doc, {
+    startY: y,
+    head: [["S#", "Item Description", "Weight (KG)", "Rate", "Amount"]],
+    body: (items || []).map((it, i) => [
+      i + 1,
+      safe(it.itemDescription, "General Item"),
+      `${Number(it.quantity || 0)} KG`,
+      money(it.ratePerKg),
+      money(it.total),
+    ]),
+    theme: "striped",
+    headStyles: {
+      fillColor: NAVY,
+      textColor: 255,
+      halign: "center",
+      fontSize: 10,
+      cellPadding: 4,
+    },
+    styles: {
+      fontSize: 9,
+      textColor: TEXT_DARK,
+      cellPadding: 4,
+    },
+    columnStyles: {
+      0: { cellWidth: 12, halign: "center" },
+      2: { cellWidth: 28, halign: "center" },
+      3: { cellWidth: 35, halign: "center" },
+      4: { cellWidth: 35, halign: "right" },
+    },
+    margin: { left: margin + 8, right: margin },
   });
 
-  return (
-    <div className="print-container">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          @page { size: A4; margin: 0mm; }
-          body { -webkit-print-color-adjust: exact; margin: 0; padding: 0; color: black; background: white; }
-          .main-wrapper { padding: 12mm; width: 210mm; margin: 0 auto; box-shadow: none; }
-          .no-print { display: none !important; }
-        }
-      `}} />
+  // --- 5) Summary Section (same box like purchase) ---
+  let finalY = doc.lastAutoTable.finalY + 10;
+  const summaryW = 86;
+  const summaryX = pageW - margin - summaryW;
 
-      <div 
-        ref={ref} 
-        className="main-wrapper bg-white font-sans mx-auto min-h-[297mm] p-10 relative"
-        style={{ width: '210mm' }} 
-      >
-        
-        {/* --- Header Section --- */}
-        <div className="flex justify-between items-center border-b-4 border-black pb-6 mb-8">
-          <div className="w-24 h-24">
-            <img src={LeftLogo} alt="Logo" className="w-full h-full object-contain" />
-          </div>
+  // If table goes too low, push summary up a bit (simple safety)
+  if (finalY + 40 > pageH - 30) finalY = pageH - 70;
 
-          <div className="text-center flex-1 px-4">
-            <h1 className="text-4xl font-black text-black uppercase tracking-tighter mb-1 italic">
-              Sales Invoice
-            </h1>
-            <h2 className="text-[16px] font-black text-black uppercase tracking-[0.2em] mb-2">
-              Sheikh & Khan Trader's
-            </h2>
-            <p className="text-[10px] font-bold text-gray-700 leading-tight uppercase">
-              Plot no 253, D N/R Farooq Masjid Haroonabad <br />
-              Karachi West Site Town
-            </p>
-            
-            <div className="flex justify-center gap-6 mt-4 pt-2 border-t border-gray-200">
-              <div className="text-center">
-                <p className="text-[9px] font-black uppercase text-gray-400">Jibran</p>
-                <p className="text-[10px] font-bold text-black">0323-1203286 | 0302-0025093</p>
-              </div>
-              <div className="text-center border-l border-gray-300 pl-6">
-                <p className="text-[9px] font-black uppercase text-gray-400">Shehroz</p>
-                <p className="text-[10px] font-bold text-black">0300-9266210 | 0333-2088846</p>
-              </div>
-            </div>
-          </div>
+  doc.setDrawColor(...NAVY);
+  doc.setLineWidth(0.4);
+  doc.rect(summaryX, finalY, summaryW, profit !== undefined && profit !== null ? 36 : 28);
 
-          <div className="w-24 h-24">
-            <img src={RightLogo} alt="Logo" className="w-full h-full object-contain" />
-          </div>
-        </div>
+  const drawRow = (label, val, yPos, isBold = false, color = NAVY) => {
+    doc.setFont("helvetica", isBold ? "bold" : "normal");
+    doc.setFontSize(isBold ? 11 : 9.5);
+    doc.setTextColor(...color);
+    doc.text(label, summaryX + 4, yPos);
+    doc.text(val, pageW - margin - 4, yPos, { align: "right" });
+  };
 
-        {/* Info Section */}
-        <div className="flex justify-between mb-8 bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
-          <div>
-            <p className="text-[9px] font-black text-blue-400 uppercase mb-1 tracking-widest">Customer / Buyer</p>
-            <h3 className="text-2xl font-black text-black uppercase">{data?.customerName || 'N/A'}</h3>
-            <p className="text-sm font-bold text-gray-600 tracking-tight">{data?.customerContact || 'No Contact'}</p>
-            <p className="text-[10px] mt-2 text-gray-500 font-bold uppercase tracking-tighter">
-              Destination: <span className="text-black">{data?.address || 'N/A'}</span>
-            </p>
-          </div>
-          
-          <div className="text-right flex flex-col justify-center">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Dispatch Details</p>
-            <p className="text-xl font-black text-black">INV #{data?.invoiceNo || 'SHK-XXXX'}</p>
-            <p className="text-[11px] font-bold text-gray-600 uppercase mt-1">{date}</p>
-            <div className="mt-2 text-[9px] font-black border-2 border-blue-600 px-3 py-1 rounded uppercase inline-block bg-white self-end text-blue-600">
-              Delivery Challan
-            </div>
-          </div>
-        </div>
+  drawRow("Subtotal Amount:", money(totalAmount), finalY + 8);
+  drawRow("Received Amount:", money(receivedAmount), finalY + 15);
 
-        {/* Items Table */}
-        <div className="border-2 border-black rounded-xl overflow-hidden mb-8">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-100 border-b-2 border-black text-black text-left">
-                <th className="p-4 uppercase font-black text-[11px]">Item Description</th>
-                <th className="p-4 uppercase font-black text-[11px] text-center">Qty / Weight</th>
-                <th className="p-4 uppercase font-black text-[11px] text-center">Unit Price</th>
-                <th className="p-4 uppercase font-black text-[11px] text-right">Sub Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {data?.items?.map((item, index) => (
-                <tr key={index} className="border-b border-gray-100">
-                  <td className="p-4">
-                    <p className="font-black text-black text-base uppercase leading-tight">{item.itemDescription}</p>
-                  </td>
-                  <td className="p-4 text-center">
-                    <p className="font-black text-black text-lg">{item.quantity} KG</p>
-                  </td>
-                  <td className="p-4 text-center font-bold text-gray-700 text-base">Rs. {Number(item.ratePerKg).toLocaleString()}</td>
-                  <td className="p-4 text-right font-black text-xl text-black">Rs. {Number(item.total).toLocaleString()}</td>
-                </tr>
-              ))}
-              <tr className="h-32 text-gray-300 italic"><td className="p-4 text-[10px]" colSpan="4 text-center">--- No More Items ---</td></tr>
-            </tbody>
-          </table>
-        </div>
+  // Divider
+  doc.setDrawColor(...BORDER_LIGHT);
+  doc.line(summaryX + 4, finalY + 18, pageW - margin - 4, finalY + 18);
 
-        {/* --- Summary & Payment Section --- */}
-        <div className="flex justify-between items-start mt-10">
-          {/* Terms & Signature */}
-          <div className="w-1/2">
-            <div className="border-l-4 border-blue-600 pl-4 mt-2">
-              <p className="text-[10px] font-black uppercase text-blue-600 mb-2 underline">Sales Terms</p>
-              <p className="text-[9px] text-gray-500 font-bold leading-tight italic">
-                1. Please check the weight before unloading at destination.<br />
-                2. We are not responsible for any damage after delivery.<br />
-                3. Payment should be made as per agreed credit terms.
-              </p>
-            </div>
-            <div className="mt-16 flex gap-10">
-               <div className="text-center">
-                 <div className="w-32 border-b border-black mb-1"></div>
-                 <p className="text-[9px] font-black uppercase">Buyer's Sign</p>
-               </div>
-               <div className="text-center">
-                 <div className="w-32 border-b border-black mb-1"></div>
-                 <p className="text-[9px] font-black uppercase">Authorized Stamp</p>
-               </div>
-            </div>
-          </div>
+  drawRow("NET BALANCE:", money(remainingAmount), finalY + 23, true);
 
-          {/* Totals */}
-          <div className="w-72">
-            <div className="border-2 border-black rounded-2xl overflow-hidden bg-white shadow-sm">
-              {/* Grand Total */}
-              <div className="flex justify-between p-3 border-b border-gray-100">
-                <span className="text-[10px] font-black uppercase text-gray-500">Net Sales Value</span>
-                <span className="font-bold text-black text-sm">Rs. {data?.totalAmount?.toLocaleString()}</span>
-              </div>
-              
-              {/* Received Amount */}
-              <div className="flex justify-between p-3 bg-blue-50 border-b border-black">
-                <span className="text-[10px] font-black uppercase text-blue-700">Cash Received</span>
-                <span className="font-black text-blue-800 text-base">Rs. {Number(data?.receivedAmount || 0).toLocaleString()}</span>
-              </div>
+  // Optional Profit line (if you pass profit)
+  if (profit !== undefined && profit !== null) {
+    // small divider
+    doc.setDrawColor(...BORDER_LIGHT);
+    doc.line(summaryX + 4, finalY + 26, pageW - margin - 4, finalY + 26);
+    drawRow("PROFIT:", money(profit), finalY + 32, true, [16, 185, 129]); // emerald-ish
+  }
 
-              {/* Remaining Balance */}
-              <div className={`flex justify-between p-4 ${data?.remainingAmount > 0 ? 'bg-rose-50' : 'bg-emerald-50'}`}>
-                <span className="text-[12px] font-black uppercase italic underline">Amount Receivable</span>
-                <span className={`text-xl font-black ${data?.remainingAmount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                  Rs. {Number(data?.remainingAmount || 0).toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+  // --- 6) Footer & Signature (same as purchase) ---
+  let footerY = pageH - 40;
+  doc.setDrawColor(...NAVY);
+  doc.setLineWidth(0.5);
+  doc.line(margin + 8, footerY, margin + 65, footerY);
+  doc.setFontSize(8);
+  doc.setTextColor(...TEXT_DARK);
+  doc.text("AUTHORIZED STAMP / SIGNATURE", margin + 36.5, footerY + 5, { align: "center" });
 
-        {/* Footer Note */}
-        <div className="absolute bottom-10 left-0 right-0 text-center border-t border-gray-100 pt-4">
-           <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.5em]">Inventory Outbound Receipt • Sheikh Traders</p>
-        </div>
-
-      </div>
-    </div>
+  // Footer Bar
+  doc.setFillColor(...NAVY);
+  doc.rect(0, pageH - 12, pageW, 12, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(
+    "Thank you for your business with Sheikh Enterprises & Khan Traders",
+    pageW / 2,
+    pageH - 5,
+    { align: "center" }
   );
-});
 
-export default SalesInvoiceBill;
+  doc.save(`Sell_Invoice_${safe(invoiceNo, "SHK")}.pdf`);
+}

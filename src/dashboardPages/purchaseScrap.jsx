@@ -1,22 +1,19 @@
 /* eslint-disable no-unused-vars */
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import {
-  ArrowLeft,
-  Plus,
-  Trash2,
-  Printer,
-  User,
-  Box,
-  ReceiptIndianRupee,
-} from "lucide-react";
+
+import { ArrowLeft, Plus, Trash2, Printer, User, Box, ReceiptIndianRupee } from "lucide-react";
 import Whatsapp from "../assets/whatsapp.png";
 
 // ✅ FIREBASE METHODS (use your existing functions)
 import { getNextInvoiceID, saveInvoice } from "../firebase/firebaseMethods";
-// ✅ REDUX (new slice)
+
+// ✅ REDUX
 import { upsertTransactionLocal } from "../redux/reducers/transactionSlice";
+
+// ✅ PDF DOWNLOAD (jsPDF + autoTable)
+import { downloadPurchaseInvoicePDF } from "../invoices components/purchaseInvoiceBill";
 
 const fontStack = "Inter, system-ui, -apple-system, sans-serif";
 const cn = (...c) => c.filter(Boolean).join(" ");
@@ -25,22 +22,16 @@ const toNum = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
-const money = (n) => (Number.isFinite(n) ? n.toLocaleString() : "0");
+const money = (n) => (Number.isFinite(n) ? n.toLocaleString("en-PK") : "0");
 
 /* =========================================================
-   ✅ SAME "BACKGROUND EXTENSION" + NOISE (like your dashboard glass)
+   Background (same as your dashboard)
    ========================================================= */
 const GlassBackground = () => (
   <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
     <div className="absolute inset-0 bg-[#F8FAFC]" />
-
-    {/* stronger, left-biased glows for iOS glass look */}
     <div className="absolute inset-0 bg-[radial-gradient(980px_circle_at_12%_18%,rgba(99,102,241,0.26),transparent_58%),radial-gradient(980px_circle_at_18%_72%,rgba(59,130,246,0.22),transparent_62%),radial-gradient(980px_circle_at_82%_22%,rgba(14,165,233,0.12),transparent_60%)]" />
-
-    {/* subtle grid */}
     <div className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(to_right,rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.06)_1px,transparent_1px)] [background-size:44px_44px]" />
-
-    {/* premium noise */}
     <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay [background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22160%22 height=%22160%22 filter=%22url(%23n)%22 opacity=%220.25%22/%3E%3C/svg%3E')]" />
   </div>
 );
@@ -48,30 +39,61 @@ const GlassBackground = () => (
 export default function PurchaseScrap() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const printRef = useRef(null);
 
   const [saving, setSaving] = useState(false);
 
+  const [invoiceNo, setInvoiceNo] = useState("Loading...");
   const [supplier, setSupplier] = useState({ name: "", phone: "" });
   const [items, setItems] = useState([
     { id: Date.now(), itemDescription: "", quantity: "", ratePerKg: "", total: 0 },
   ]);
   const [paidAmount, setPaidAmount] = useState("");
 
+  // ✅ get next invoice on mount
+  useEffect(() => {
+    const boot = async () => {
+      try {
+        const next = await getNextInvoiceID("purchase");
+        setInvoiceNo(next);
+      } catch (e) {
+        console.error(e);
+        setInvoiceNo("PSK-0000");
+      }
+    };
+    boot();
+  }, []);
+
   const totals = useMemo(() => {
     const grandTotal = items.reduce((sum, it) => sum + toNum(it.total), 0);
     const paid = toNum(paidAmount);
     const remaining = grandTotal - paid;
-    return { grandTotal, paid, remaining: remaining < 0 ? 0 : remaining };
+
+    const totalKg = items.reduce((sum, it) => sum + toNum(it.quantity), 0);
+    const overallRate = totalKg > 0 ? grandTotal / totalKg : 0;
+
+    return {
+      grandTotal,
+      paid,
+      remaining: remaining < 0 ? 0 : remaining,
+      totalKg,
+      overallRate,
+    };
   }, [items, paidAmount]);
 
   const addItem = () =>
     setItems((p) => [
       ...p,
-      { id: Date.now() + Math.random(), itemDescription: "", quantity: "", ratePerKg: "", total: 0 },
+      {
+        id: Date.now() + Math.random(),
+        itemDescription: "",
+        quantity: "",
+        ratePerKg: "",
+        total: 0,
+      },
     ]);
 
-  const removeItem = (id) => setItems((p) => (p.length > 1 ? p.filter((i) => i.id !== id) : p));
+  const removeItem = (id) =>
+    setItems((p) => (p.length > 1 ? p.filter((i) => i.id !== id) : p));
 
   const handleItemChange = (id, field, value) => {
     setItems((prev) =>
@@ -91,11 +113,23 @@ export default function PurchaseScrap() {
     return supplier.name.trim() && hasItem && totals.grandTotal > 0 && !saving;
   }, [supplier.name, items, totals.grandTotal, saving]);
 
-  const handlePrint = () => window.print();
+  // ✅ PDF Download on Print button
+  const handlePrint = () => {
+    downloadPurchaseInvoicePDF({
+      invoiceNo,
+      supplierName: supplier.name,
+      supplierPhone: supplier.phone,
+      items,
+      totalAmount: totals.grandTotal,
+      paidAmount: totals.paid,
+      remainingAmount: totals.remaining,
+    });
+  };
 
   const handleWhatsApp = () => {
     const lines = [];
     lines.push("Purchase Invoice");
+    lines.push(`Invoice: ${invoiceNo}`);
     lines.push(`Supplier: ${supplier.name || "-"}`);
     lines.push(`Phone: ${supplier.phone || "-"}`);
     lines.push("");
@@ -109,6 +143,8 @@ export default function PurchaseScrap() {
       );
     });
     lines.push("");
+    lines.push(`Total KG: ${money(totals.totalKg)} KG`);
+    lines.push(`Overall Rate: Rs ${money(totals.overallRate)} / KG`);
     lines.push(`Total: ${money(totals.grandTotal)} PKR`);
     lines.push(`Paid: ${money(totals.paid)} PKR`);
     lines.push(`Balance: ${money(totals.remaining)} PKR`);
@@ -122,7 +158,8 @@ export default function PurchaseScrap() {
     setSaving(true);
 
     try {
-      const invoiceNo = await getNextInvoiceID("purchase");
+      // use current invoiceNo state (DON'T generate again)
+      const inv = invoiceNo;
 
       const cleanItems = items
         .filter(
@@ -142,15 +179,21 @@ export default function PurchaseScrap() {
 
       const invoiceData = {
         type: "purchase",
-        invoiceNo,
+        invoiceNo: inv,
+
+        // party fields
         sellerName: supplier.name.trim(),
         sellerContact: supplier.phone.trim(),
         partyName: supplier.name.trim(),
         partyContact: supplier.phone.trim(),
+
         items: cleanItems,
+
         totalAmount: toNum(totals.grandTotal),
         paidAmount: toNum(totals.paid),
+        receivedAmount: toNum(totals.paid), // optional legacy
         remainingAmount: toNum(totals.remaining),
+
         profit: 0,
       };
 
@@ -164,9 +207,15 @@ export default function PurchaseScrap() {
         })
       );
 
+      // ✅ after save: next invoiceNo
+      const next = await getNextInvoiceID("purchase");
+      setInvoiceNo(next);
+
+      // navigation
       if (toNum(invoiceData.remainingAmount) > 0) navigate("/PendingPayments");
       else navigate("/dashboard");
 
+      // reset form
       setSupplier({ name: "", phone: "" });
       setItems([{ id: Date.now(), itemDescription: "", quantity: "", ratePerKg: "", total: 0 }]);
       setPaidAmount("");
@@ -179,7 +228,7 @@ export default function PurchaseScrap() {
   };
 
   /* =========================
-     ✅ GLASS THEME
+     GLASS THEME
      ========================= */
   const card =
     "relative overflow-hidden bg-white/30 backdrop-blur-3xl backdrop-saturate-[180%] border border-white/55 ring-1 ring-white/25 shadow-[0_24px_80px_-55px_rgba(2,6,23,0.55)] rounded-[2.6rem]";
@@ -215,7 +264,7 @@ export default function PurchaseScrap() {
               New Purchase
             </h1>
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">
-              Purchase Entry
+              Invoice: <span className="font-black text-slate-700">{invoiceNo}</span>
             </p>
           </div>
         </div>
@@ -230,6 +279,7 @@ export default function PurchaseScrap() {
             <span className="text-[11px] font-black uppercase tracking-wider">WhatsApp</span>
           </button>
 
+          {/* ✅ Download PDF */}
           <button
             onClick={handlePrint}
             className={cn(
@@ -238,13 +288,13 @@ export default function PurchaseScrap() {
             )}
           >
             <Printer size={18} />
-            <span className="hidden sm:block">Print</span>
+            <span className="hidden sm:block">Download</span>
           </button>
         </div>
       </header>
 
       {/* BODY */}
-      <main ref={printRef} className="relative z-10 px-6 md:px-10 pb-12 max-w-[1400px] mx-auto">
+      <main className="relative z-10 px-6 md:px-10 pb-12 max-w-[1400px] mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* LEFT */}
           <div className="lg:col-span-2 space-y-6">
@@ -386,7 +436,18 @@ export default function PurchaseScrap() {
 
                 <div className="p-7 space-y-6 relative">
                   <div className={cn("rounded-[2rem] p-6", softInset, "bg-white/18")}>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Total</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Total KG</p>
+                      <p className="text-[12px] font-black text-slate-900">{money(totals.totalKg)} KG</p>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Overall Rate</p>
+                      <p className="text-[12px] font-black text-slate-900">Rs. {money(totals.overallRate)} / KG</p>
+                    </div>
+
+                    <div className="mt-4 h-px bg-white/60" />
+
+                    <p className="mt-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Total</p>
                     <p className="mt-2 text-[34px] font-black tracking-tighter text-slate-900 leading-none">
                       Rs. {money(totals.grandTotal)}
                     </p>
@@ -412,9 +473,7 @@ export default function PurchaseScrap() {
                     <div
                       className={cn(
                         "mt-5 rounded-2xl p-4 border flex items-center justify-between",
-                        totals.remaining > 0
-                          ? "bg-rose-50/60 border-rose-100/70"
-                          : "bg-emerald-50/60 border-emerald-100/70"
+                        totals.remaining > 0 ? "bg-rose-50/60 border-rose-100/70" : "bg-emerald-50/60 border-emerald-100/70"
                       )}
                     >
                       <span
@@ -426,10 +485,7 @@ export default function PurchaseScrap() {
                         {totals.remaining > 0 ? "Balance" : "Paid"}
                       </span>
                       <span
-                        className={cn(
-                          "text-[16px] font-black",
-                          totals.remaining > 0 ? "text-rose-700" : "text-emerald-700"
-                        )}
+                        className={cn("text-[16px] font-black", totals.remaining > 0 ? "text-rose-700" : "text-emerald-700")}
                       >
                         Rs. {money(totals.remaining)}
                       </span>
@@ -463,6 +519,20 @@ export default function PurchaseScrap() {
                   >
                     <img src={Whatsapp} alt="WA" className="w-5 h-5 object-contain" />
                     Share
+                  </button>
+
+                  {/* ✅ Download PDF also from sidebar */}
+                  <button
+                    onClick={handlePrint}
+                    type="button"
+                    className={cn(
+                      "w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2",
+                      "bg-white/35 hover:bg-white/50 border border-white/60",
+                      "transition active:scale-95"
+                    )}
+                  >
+                    <Printer size={18} className="text-slate-700" />
+                    Download Invoice PDF
                   </button>
                 </div>
               </section>
