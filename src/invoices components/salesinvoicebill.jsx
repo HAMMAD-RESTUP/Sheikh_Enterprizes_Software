@@ -174,14 +174,7 @@ export function downloadSellInvoicePDF({
 
   drawRow("NET BALANCE:", money(remainingAmount), finalY + 23, true);
 
-  // Optional Profit line (if you pass profit)
-  if (profit !== undefined && profit !== null) {
-    // small divider
-    doc.setDrawColor(...BORDER_LIGHT);
-    doc.line(summaryX + 4, finalY + 26, pageW - margin - 4, finalY + 26);
-    drawRow("PROFIT:", money(profit), finalY + 32, true, [16, 185, 129]); // emerald-ish
-  }
-
+  
   // --- 6) Footer & Signature (same as purchase) ---
   let footerY = pageH - 40;
   doc.setDrawColor(...NAVY);
