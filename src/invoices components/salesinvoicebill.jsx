@@ -174,7 +174,7 @@ export function downloadSellInvoicePDF({
 
   drawRow("NET BALANCE:", money(remainingAmount), finalY + 23, true);
 
-  
+
   // --- 6) Footer & Signature (same as purchase) ---
   let footerY = pageH - 40;
   doc.setDrawColor(...NAVY);
@@ -196,6 +196,6 @@ export function downloadSellInvoicePDF({
     pageH - 5,
     { align: "center" }
   );
+  doc.save(`Sell_Invoice_${safe(buyerName, "N-A")}_${safe(invoiceNo, "SHK")}.pdf`);
 
-  doc.save(`Sell_Invoice_${safe(invoiceNo, "SHK")}.pdf`);
 }

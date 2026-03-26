@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { fetchTransactions } from "../redux/reducers/transactionSlice"; // ✅ path check (agar dashboardPages ke level pe different ho)
 
-import { Calendar, Search, Eye, Pencil } from "lucide-react";
+import { Calendar, Search, Eye, Pencil, ArrowLeft } from "lucide-react";
 
 const cn = (...c) => c.filter(Boolean).join(" ");
 const getDateFromTx = (t) => t?.createdAt || t?.timestamp || t?.date || t?.time;
@@ -96,24 +96,23 @@ export default function SellerRecords() {
 
       <div className="relative z-10 max-w-[1400px] mx-auto px-6 md:px-10 py-10">
         {/* top bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="h-12 w-12 rounded-2xl bg-white/50 backdrop-blur-xl border border-white/70 shadow-sm hover:bg-white/60 transition active:scale-95 flex items-center justify-center text-slate-700"
+            title="Back"
+          >
+            <ArrowLeft size={18} />
+          </button>
+
           <div>
             <h1 className="text-2xl font-black tracking-tight text-slate-900">Seller Records</h1>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">
-              Sell entries only • view / edit
+              Seller Entries Records
             </p>
           </div>
-
-          <div className="relative w-full md:w-[420px]">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search by party or invoice..."
-              className="w-full pl-10 pr-4 py-3.5 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/70 shadow-sm outline-none focus:bg-white/55 focus:ring-4 focus:ring-blue-100/60"
-            />
-          </div>
         </div>
+
 
         {/* table */}
         <div className="mt-7 bg-white/50 backdrop-blur-2xl border border-white/70 rounded-[2.4rem] overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.08)]">

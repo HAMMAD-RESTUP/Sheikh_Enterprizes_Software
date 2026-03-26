@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   Calendar,
   ChevronRight,
+  ArrowDownCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -55,25 +56,19 @@ const formatDate = (t) => {
 };
 
 /* =========================================================
-   ✅ Background Extension (makes real glass visible)
+   Background
    ========================================================= */
 const Background = () => (
   <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
     <div className="absolute inset-0 bg-[#F8FAFC]" />
-
-    {/* Left-side stronger color so sidebar looks like frosted glass */}
     <div className="absolute inset-0 bg-[radial-gradient(980px_circle_at_12%_18%,rgba(99,102,241,0.26),transparent_58%),radial-gradient(980px_circle_at_18%_72%,rgba(59,130,246,0.22),transparent_62%),radial-gradient(980px_circle_at_82%_22%,rgba(14,165,233,0.12),transparent_60%)]" />
-
-    {/* Soft grid */}
     <div className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(to_right,rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.06)_1px,transparent_1px)] [background-size:44px_44px]" />
-
-    {/* Premium noise */}
     <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay [background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22160%22 height=%22160%22 filter=%22url(%23n)%22 opacity=%220.25%22/%3E%3C/svg%3E')]" />
   </div>
 );
 
 /* =========================================================
-   ✅ Glass Stat Card
+   Glass Stat Card
    ========================================================= */
 const StatCard = ({
   label,
@@ -83,6 +78,7 @@ const StatCard = ({
   trend,
   subLabel,
   isAlert,
+  isWarning,
 }) => (
   <div
     className={cn(
@@ -91,13 +87,11 @@ const StatCard = ({
       "border border-white/55 ring-1 ring-white/25",
       "shadow-[0_22px_70px_-45px_rgba(2,6,23,0.40)]",
       "hover:-translate-y-1 hover:shadow-[0_34px_95px_-55px_rgba(2,6,23,0.52)]",
-      isAlert ? "ring-4 ring-rose-200/25" : ""
+      isAlert ? "ring-4 ring-rose-200/25" : "",
+      isWarning ? "ring-4 ring-amber-200/25" : ""
     )}
   >
-    {/* inner sheen */}
     <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.80),rgba(255,255,255,0.28),rgba(255,255,255,0.55))] opacity-45" />
-
-    {/* shine sweep */}
     <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
       <div className="absolute -left-1/2 top-0 h-full w-[150%] rotate-12 bg-gradient-to-r from-transparent via-white/25 to-transparent blur-md" />
     </div>
@@ -117,7 +111,11 @@ const StatCard = ({
       <span
         className={cn(
           "text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest",
-          isAlert ? "bg-rose-500 text-white" : "bg-blue-600 text-white"
+          isAlert
+            ? "bg-rose-500 text-white"
+            : isWarning
+            ? "bg-amber-500 text-white"
+            : "bg-blue-600 text-white"
         )}
       >
         {trend}
@@ -147,26 +145,17 @@ function TypePill({ type }) {
       ? { cls: "bg-blue-50/70 text-blue-700 border-blue-100/70", text: "Purchase" }
       : t === "sell"
       ? { cls: "bg-emerald-50/70 text-emerald-700 border-emerald-100/70", text: "Sell" }
-      : {
-          cls: "bg-slate-50/70 text-slate-700 border-slate-100/70",
-          text: type || "Record",
-        };
+      : { cls: "bg-slate-50/70 text-slate-700 border-slate-100/70", text: type || "Record" };
 
   return (
-    <span
-      className={cn(
-        "text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-tighter border",
-        cfg.cls
-      )}
-    >
+    <span className={cn("text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-tighter border", cfg.cls)}>
       {cfg.text}
     </span>
   );
 }
 
 function StatusPill({ remaining }) {
-  const r = Number(remaining || 0);
-  const paid = r <= 0;
+  const paid = Number(remaining || 0) <= 0;
   return (
     <span
       className={cn(
@@ -196,17 +185,19 @@ export default function Dashboard() {
     pending = [],
     loading = false,
     metrics = { dailyProfit: 0, monthlyProfit: 0, yearlyProfit: 0 },
-    summary = { totalDue: 0 },
+    summary = { totalReceivable: 0, totalPayable: 0 },
   } = useSelector((state) => state.transactions || {});
 
-  const dailyProfit = metrics.dailyProfit || 0;
+  const dailyProfit   = metrics.dailyProfit   || 0;
   const monthlyProfit = metrics.monthlyProfit || 0;
-  const yearlyProfit = metrics.yearlyProfit || 0;
-  const totalCredit = summary.totalDue || 0;
+  const yearlyProfit  = metrics.yearlyProfit  || 0;
 
-  useEffect(() => {
-    dispatch(fetchTransactions());
-  }, [dispatch]);
+  // ✅ Sell ka outstanding — customers se lena hai
+  const totalReceivable = summary.totalReceivable || 0;
+  // ✅ Purchase ka outstanding — suppliers ko dena hai
+  const totalPayable    = summary.totalPayable    || 0;
+
+  useEffect(() => { dispatch(fetchTransactions()); }, [dispatch]);
 
   const handleLogout = async () => {
     const res = await logoutUser();
@@ -218,21 +209,13 @@ export default function Dashboard() {
     const onlyPending = (Array.isArray(src) ? src : []).filter(
       (t) => Number(t?.remainingAmount || 0) > 0
     );
-
     onlyPending.sort((a, b) => {
       const da = getDateFromTx(a);
       const db = getDateFromTx(b);
-      const aMs =
-        typeof da?.toDate === "function"
-          ? da.toDate().getTime()
-          : new Date(da || 0).getTime();
-      const bMs =
-        typeof db?.toDate === "function"
-          ? db.toDate().getTime()
-          : new Date(db || 0).getTime();
+      const aMs = typeof da?.toDate === "function" ? da.toDate().getTime() : new Date(da || 0).getTime();
+      const bMs = typeof db?.toDate === "function" ? db.toDate().getTime() : new Date(db || 0).getTime();
       return bMs - aMs;
     });
-
     return onlyPending.slice(0, 7);
   }, [pending, list]);
 
@@ -243,18 +226,18 @@ export default function Dashboard() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -14 }}
       transition={{ duration: 0.28 }}
-      className="space-y-8"
+      className="space-y-5"
       style={{ fontFamily: fontStack }}
     >
-      {/* TOP STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* ── ROW 1: 3 Profit Cards ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <StatCard
           label="Daily Profit"
           value={dailyProfit}
           icon={TrendingUp}
           colorClass="text-emerald-600"
           trend="Today"
-          subLabel="Live"
+          subLabel="Today"
         />
         <StatCard
           label="Monthly Profit"
@@ -272,17 +255,31 @@ export default function Dashboard() {
           trend="Year"
           subLabel="This year"
         />
+      </div>
+
+      {/* ── ROW 2: 2 Outstanding Cards — puri width mein, zyada space ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <StatCard
-          label="Outstanding Balance"
-          value={totalCredit}
+          label="Outstanding Receivable"
+          value={totalReceivable}
           icon={Wallet}
           colorClass="text-rose-700"
           trend="Due"
-          subLabel="Receivable"
+          subLabel="Sell — amount to receive from customers"
           isAlert
+        />
+        <StatCard
+          label="Outstanding Payable"
+          value={totalPayable}
+          icon={ArrowDownCircle}
+          colorClass="text-amber-700"
+          trend="Pay"
+          subLabel="Purchase — amount to pay to suppliers"
+          isWarning
         />
       </div>
 
+      {/* ── TABLE + QUICK ACTIONS ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* PENDING TABLE */}
         <div className="lg:col-span-8 bg-white/40 backdrop-blur-2xl backdrop-saturate-[170%] rounded-[2.6rem] border border-white/55 ring-1 ring-white/25 shadow-[0_22px_70px_-45px_rgba(2,6,23,0.40)] overflow-hidden">
@@ -295,7 +292,6 @@ export default function Dashboard() {
                 Unpaid Pending Amounts (Purchase / Sell)
               </p>
             </div>
-
             <button
               onClick={() => navigate("/pendingpayments")}
               className="flex items-center gap-2 px-4 py-2 bg-white/35 hover:bg-blue-600 hover:text-white text-slate-700 rounded-xl text-[10px] font-black transition-all group border border-white/45 backdrop-blur-xl"
@@ -317,7 +313,6 @@ export default function Dashboard() {
                   <th className="px-8 py-5 text-right">Status</th>
                 </tr>
               </thead>
-
               <tbody className="divide-y divide-white/25">
                 {pendingTransactions.length === 0 ? (
                   <tr>
@@ -327,8 +322,7 @@ export default function Dashboard() {
                   </tr>
                 ) : (
                   pendingTransactions.map((t) => {
-                    const party =
-                      t.partyName || t.customerName || t.sellerName || t.name || "—";
+                    const party = t.partyName || t.customerName || t.sellerName || t.name || "—";
                     return (
                       <tr key={t.id} className="hover:bg-white/25 transition-all cursor-default group">
                         <td className="px-8 py-5 text-slate-700 font-bold">
@@ -337,9 +331,7 @@ export default function Dashboard() {
                             {formatDate(t)}
                           </div>
                         </td>
-                        <td className="px-8 py-5">
-                          <TypePill type={t.type} />
-                        </td>
+                        <td className="px-8 py-5"><TypePill type={t.type} /></td>
                         <td className="px-8 py-5 text-slate-900 font-bold">{party}</td>
                         <td className="px-8 py-5 text-right font-extrabold text-slate-900">
                           Rs. {Number(t.totalAmount || 0).toLocaleString()}
@@ -359,7 +351,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ✅ QUICK ACTIONS (same glass recipe) */}
+        {/* QUICK ACTIONS */}
         <div className="lg:col-span-4 space-y-5">
           <div
             className={cn(
@@ -369,9 +361,7 @@ export default function Dashboard() {
               "shadow-[0_25px_80px_-50px_rgba(2,6,23,0.55)]"
             )}
           >
-            {/* inner sheen */}
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.80),rgba(255,255,255,0.28),rgba(255,255,255,0.55))] opacity-45" />
-            {/* soft bloom */}
             <div className="pointer-events-none absolute -top-20 -right-20 w-56 h-56 rounded-full bg-blue-500/18 blur-[90px]" />
             <div className="pointer-events-none absolute -bottom-20 -left-20 w-56 h-56 rounded-full bg-indigo-500/14 blur-[90px]" />
 
@@ -387,7 +377,6 @@ export default function Dashboard() {
                   Add purchase or sell in seconds.
                 </p>
               </div>
-
               <div className="h-12 w-12 rounded-2xl bg-white/50 border border-white/55 backdrop-blur-xl flex items-center justify-center text-slate-700">
                 <ChevronRight size={20} />
               </div>
@@ -396,16 +385,13 @@ export default function Dashboard() {
             <div className="relative space-y-3 mt-7">
               <button
                 onClick={() => navigate("/purchase")}
-                className="w-full py-4.5 rounded-2xl font-black text-xs text-white flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-wider
-                           bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/25"
+                className="w-full py-4.5 rounded-2xl font-black text-xs text-white flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-wider bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/25"
               >
                 <PlusCircle size={18} /> New Purchase
               </button>
-
               <button
                 onClick={() => navigate("/sell")}
-                className="w-full py-4.5 rounded-2xl font-black text-xs text-slate-900 flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-wider
-                           bg-white/55 hover:bg-white/70 border border-white/60 backdrop-blur-xl"
+                className="w-full py-4.5 rounded-2xl font-black text-xs text-slate-900 flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-wider bg-white/55 hover:bg-white/70 border border-white/60 backdrop-blur-xl"
               >
                 <PlusCircle size={18} /> New Sell
               </button>
@@ -417,7 +403,7 @@ export default function Dashboard() {
               🔔  Reminder
             </p>
             <p className="mt-2 text-slate-800 font-bold">
-              Clear “Due” payments from pending Payments automatically.
+              Clear "Due" payments from pending Payments automatically.
             </p>
           </div>
         </div>
@@ -426,23 +412,18 @@ export default function Dashboard() {
   );
 
   const menuItems = [
-    {
-      icon: LayoutDashboard,
-      label: "Dashboard",
-      active: isOverview,
-      onClick: () => navigate("/dashboard"),
-    },
-    { icon: Users, label: "Profits History", onClick: () => navigate("/profits") },
-    { icon: FileText, label: "Seller Records", onClick: () => navigate("/sellerRecords") },
-    { icon: History, label: "Purchase Records", onClick: () => navigate("/purchaserecords") },
-    { icon: Wallet, label: "Pending Payments", onClick: () => navigate("/PendingPayments") },
+    { icon: LayoutDashboard, label: "Dashboard",        active: isOverview, onClick: () => navigate("/dashboard") },
+    { icon: Users,           label: "Profits History",               onClick: () => navigate("/profits") },
+    { icon: FileText,        label: "Seller Records",                onClick: () => navigate("/sellerRecords") },
+    { icon: History,         label: "Purchase Records",              onClick: () => navigate("/purchaserecords") },
+    { icon: Wallet,          label: "Pending Payments",              onClick: () => navigate("/PendingPayments") },
   ];
 
   return (
     <div className="min-h-screen relative flex bg-[#F8FAFC] selection:bg-blue-100" style={{ fontFamily: fontStack }}>
       <Background />
 
-      {/* ✅ TRUE FROSTED GLASS SIDEBAR (floating like iOS) */}
+      {/* FROSTED GLASS SIDEBAR */}
       <aside
         className={cn(
           "relative z-20 p-6 flex flex-col gap-10 transition-all duration-500 overflow-hidden",
@@ -450,10 +431,8 @@ export default function Dashboard() {
           "bg-white/22 backdrop-blur-[28px] backdrop-saturate-[190%]",
           "border border-white/55 ring-1 ring-white/30",
           "shadow-[0_28px_90px_-55px_rgba(2,6,23,0.65)]",
-          // inner highlight
           "before:absolute before:inset-0 before:pointer-events-none before:content-['']",
           "before:bg-[linear-gradient(180deg,rgba(255,255,255,0.85),rgba(255,255,255,0.28),rgba(255,255,255,0.55))] before:opacity-55",
-          // subtle color tint inside panel
           "after:absolute after:inset-0 after:pointer-events-none after:content-['']",
           "after:bg-[radial-gradient(900px_circle_at_18%_18%,rgba(99,102,241,0.18),transparent_58%),radial-gradient(900px_circle_at_30%_80%,rgba(59,130,246,0.14),transparent_62%)] after:opacity-90",
           isSidebarOpen ? "w-64" : "w-24"
@@ -490,7 +469,6 @@ export default function Dashboard() {
           ))}
         </nav>
 
-        {/* edge highlight */}
         <div className="pointer-events-none absolute top-0 right-0 h-full w-[2px] bg-gradient-to-b from-white/55 via-white/20 to-transparent" />
       </aside>
 
@@ -508,27 +486,20 @@ export default function Dashboard() {
             <div className="h-12 w-12 bg-white/70 backdrop-blur-md rounded-2xl flex items-center justify-center text-slate-500 shadow-sm border border-white/60 cursor-pointer hover:text-blue-600 transition-all">
               <Bell size={20} />
             </div>
-
             <button
               onClick={() => navigate("/purchase")}
               className="hidden md:flex items-center gap-2 px-5 py-3 bg-slate-900 hover:bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-200/50 transition-all active:scale-95"
             >
               <PlusCircle size={18} />
-              <span className="text-[11px] font-black uppercase tracking-wider">
-                New Entry
-              </span>
+              <span className="text-[11px] font-black uppercase tracking-wider">New Entry</span>
             </button>
-
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 px-5 py-3 bg-white/70 backdrop-blur-md border border-white/60 rounded-2xl shadow-sm text-rose-600 font-bold text-xs hover:bg-rose-50/70 transition-all group"
             >
               <LogOut size={16} className="group-hover:-translate-x-1 transition-transform" />
-              <span className="hidden sm:block uppercase tracking-wider font-black">
-                Logout
-              </span>
+              <span className="hidden sm:block uppercase tracking-wider font-black">Logout</span>
             </button>
-
             <div className="h-12 w-12 rounded-2xl bg-slate-900 border-2 border-white shadow-lg flex items-center justify-center text-white text-[10px] font-bold">
               ADMIN
             </div>

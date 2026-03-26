@@ -193,8 +193,8 @@ export default function Profits() {
 
           <div>
             <h1 className="text-2xl font-black tracking-tight text-slate-900">Profits</h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">
-              Month-wise report + Invoice-style PDF
+            <p className="text-[10px] font-bold text-slate-700 uppercase tracking-[0.2em] mt-1">
+              Month-wise report
             </p>
           </div>
         </div>

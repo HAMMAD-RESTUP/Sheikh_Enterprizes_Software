@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { fetchTransactions } from "../redux/reducers/transactionSlice"; // ✅ path check
 
-import { Calendar, Search, Eye, Pencil } from "lucide-react";
+import { Calendar, Search, Eye, Pencil, ArrowLeft } from "lucide-react";
 
 const cn = (...c) => c.filter(Boolean).join(" ");
 const getDateFromTx = (t) => t?.createdAt || t?.timestamp || t?.date || t?.time;
@@ -17,10 +17,10 @@ const formatDate = (t) => {
       typeof raw?.toDate === "function"
         ? raw.toDate()
         : raw instanceof Date
-        ? raw
-        : typeof raw === "number"
-        ? new Date(raw)
-        : new Date(raw);
+          ? raw
+          : typeof raw === "number"
+            ? new Date(raw)
+            : new Date(raw);
 
     if (Number.isNaN(d.getTime())) return "—";
     return d.toLocaleDateString(undefined, {
@@ -39,8 +39,8 @@ function TypePill({ type }) {
     t === "purchase"
       ? { cls: "bg-blue-50 text-blue-700 border-blue-100", text: "Purchase" }
       : t === "sell"
-      ? { cls: "bg-emerald-50 text-emerald-700 border-emerald-100", text: "Sell" }
-      : { cls: "bg-slate-50 text-slate-700 border-slate-100", text: type || "Record" };
+        ? { cls: "bg-emerald-50 text-emerald-700 border-emerald-100", text: "Sell" }
+        : { cls: "bg-slate-50 text-slate-700 border-slate-100", text: type || "Record" };
 
   return (
     <span className={cn("text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-tighter border", cfg.cls)}>
@@ -87,8 +87,11 @@ export default function PurchaserRecords() {
 
   return (
     <div className="min-h-screen relative bg-[#F8FAFC] text-slate-900">
+
       {/* background */}
+
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+
         <div className="absolute inset-0 bg-[#F8FAFC]" />
         <div className="absolute inset-0 bg-[radial-gradient(950px_circle_at_18%_18%,rgba(59,130,246,0.12),transparent_55%),radial-gradient(900px_circle_at_84%_26%,rgba(14,165,233,0.10),transparent_55%)]" />
         <div className="absolute inset-0 opacity-[0.15] [background-image:linear-gradient(to_right,rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.06)_1px,transparent_1px)] [background-size:40px_40px]" />
@@ -97,12 +100,22 @@ export default function PurchaserRecords() {
       <div className="relative z-10 max-w-[1400px] mx-auto px-6 md:px-10 py-10">
         {/* top bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+     <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="h-12 w-12 rounded-2xl bg-white/50 backdrop-blur-xl border border-white/70 shadow-sm hover:bg-white/60 transition active:scale-95 flex items-center justify-center text-slate-700"
+            title="Back"
+          >
+            <ArrowLeft size={18} />
+          </button>
+
           <div>
             <h1 className="text-2xl font-black tracking-tight text-slate-900">Purchase Records</h1>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">
-              Purchase entries only • view / edit
+              Purchase Entries Records
             </p>
           </div>
+        </div>
 
           <div className="relative w-full md:w-[420px]">
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />

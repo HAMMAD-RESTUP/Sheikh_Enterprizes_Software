@@ -163,5 +163,6 @@ export function downloadPurchaseInvoicePDF({
   doc.setTextColor(255, 255, 255);
   doc.text("Thank you for your business with Sheikh Enterprises & Khan Traders", pageW / 2, pageH - 5, { align: "center" });
 
-  doc.save(`Invoice_${safe(invoiceNo, "INV")}.pdf`);
+  doc.save(`Purchase Invoice${safe(supplierName, "N/A")}_${safe(invoiceNo, "INV")}_Invoice.pdf`);
 }
+
